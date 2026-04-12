@@ -1,0 +1,94 @@
+:root {
+  --off-white: #fcfcfd;
+  --bg-slate: #f8fafc;
+  --deep-navy: #0f172a;
+  --accent-blue: #2563eb;
+  --accent-blue-soft: #dbeafe;
+  --border-gray: #e2e8f0;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --success: #16a34a;
+}
+
+body {
+  background-color: var(--bg-slate);
+  color: var(--text-main);
+  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 堅実で清潔感のあるパネル */
+.main-panel {
+  background: white;
+  border: 1px solid var(--border-gray);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 選択状態を明確にするコントラスト設計 */
+.option-btn {
+  background: white;
+  border: 1px solid var(--border-gray);
+  color: var(--text-main);
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  text-align: center;
+}
+
+.option-btn:hover {
+  background: var(--bg-slate);
+  border-color: var(--text-muted);
+}
+
+.option-btn.active {
+  background: var(--deep-navy);
+  color: white;
+  border-color: var(--deep-navy);
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* データテーブル */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  background: var(--bg-slate);
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-gray);
+  text-align: left;
+}
+
+.data-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-gray);
+  font-size: 0.875rem;
+}
+
+.data-table tr:hover {
+  background: var(--off-white);
+}
+
+/* バッジ */
+.badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.badge-blue { background: var(--accent-blue-soft); color: var(--accent-blue); }
+.badge-green { background: #dcfce7; color: var(--success); }
+.badge-gray { background: #f1f5f9; color: var(--text-muted); }
+
+/* スクロールバー */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
