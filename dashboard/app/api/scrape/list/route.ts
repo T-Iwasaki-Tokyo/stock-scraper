@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { fetchStockList } from '../../../../scraper.js';
+import { fetchStockList } from '@/lib/scraper';
 import fs from 'fs';
 import path from 'path';
 
 export async function POST() {
     try {
-        const rootDir = path.resolve(process.cwd(), '..');
+        const rootDir = process.cwd();
         const configPath = path.join(rootDir, 'config.json');
         const resultsPath = path.join(rootDir, 'results.json');
         
@@ -14,11 +14,12 @@ export async function POST() {
         // リストを取得
         const stocks = await fetchStockList(config);
         
-        // 最初のリストを保存（詳細待ち状態として）
+        // 最初のリストを保存（ローカル確認用）
         fs.writeFileSync(resultsPath, JSON.stringify(stocks, null, 2));
         
         return NextResponse.json({ success: true, stocks });
     } catch (e: any) {
+        console.error('List API Error:', e);
         return NextResponse.json({ success: false, error: e.message }, { status: 500 });
     }
 }

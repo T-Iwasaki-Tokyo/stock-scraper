@@ -1,25 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-// プロジェクトルートのconfig.jsonのパスを解決
-const CONFIG_PATH = path.join(process.cwd(), '..', 'config.json');
-
 export async function GET() {
-  try {
-    const data = fs.readFileSync(CONFIG_PATH, 'utf-8');
-    return NextResponse.json(JSON.parse(data));
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Failed to read config', details: error.message }, { status: 500 });
-  }
+    const filePath = path.join(process.cwd(), 'config.json');
+    const config = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    return NextResponse.json(config);
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const newConfig = await req.json();
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2));
-    return NextResponse.json({ message: 'Config updated successfully' });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Failed to update config', details: error.message }, { status: 500 });
-  }
+export async function POST(request: Request) {
+    const body = await request.json();
+    const filePath = path.join(process.cwd(), 'config.json');
+    fs.writeFileSync(filePath, JSON.stringify(body, null, 2));
+    return NextResponse.json({ success: true });
 }

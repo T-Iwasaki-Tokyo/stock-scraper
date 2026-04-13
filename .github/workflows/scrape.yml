@@ -17,9 +17,12 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          cd dashboard
+          npm install
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
@@ -30,4 +33,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: node scraper.js
+        run: |
+          cd dashboard
+          node lib/scraper.js

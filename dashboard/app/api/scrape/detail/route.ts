@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchStockDetail } from '../../../../scraper.js';
+import { fetchStockDetail } from '@/lib/scraper';
 import fs from 'fs';
 import path from 'path';
 
@@ -14,8 +14,7 @@ export async function GET(request: Request) {
     try {
         const detail = await fetchStockDetail(code);
         
-        // ローカルでの永続性のために results.json を更新（Vercelではこれは無視されますが、ローカルでの動作継続のため）
-        const rootDir = path.resolve(process.cwd(), '..');
+        const rootDir = process.cwd();
         const resultsPath = path.join(rootDir, 'results.json');
         
         if (fs.existsSync(resultsPath)) {
@@ -29,6 +28,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json({ success: true, detail });
     } catch (e: any) {
+        console.error('Detail API Error:', e);
         return NextResponse.json({ success: false, error: e.message }, { status: 500 });
     }
 }
