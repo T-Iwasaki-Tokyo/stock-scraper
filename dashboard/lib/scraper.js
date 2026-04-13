@@ -166,7 +166,7 @@ export async function fetchStockDetail(code) {
 }
 
 // GitHub Actions 等でコマンドラインからも実行可能なようにエントリポイントを用意
-if (process.argv[1].endsWith('scraper.js')) {
+if (process.argv[1]?.endsWith('scraper.js')) {
     (async () => {
         const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
         const list = await fetchStockList(config);
