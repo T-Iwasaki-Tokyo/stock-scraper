@@ -1,4 +1,7 @@
+@import "tailwindcss";
+
 :root {
+
   --off-white: #fcfcfd;
   --bg-slate: #f8fafc;
   --deep-navy: #0f172a;
