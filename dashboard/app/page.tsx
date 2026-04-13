@@ -18,7 +18,6 @@ export default function DashboardPage() {
   const [openGroups, setOpenGroups] = useState<string[]>(['金券・ポイント']);
 
   const fetchResults = useCallback(async () => {
-    // 最初の読み込み用
     const res = await fetch('/api/results');
     const data = await res.json();
     setResults(data);
@@ -51,7 +50,6 @@ export default function DashboardPage() {
     setIsRunning(true);
     setResults([]);
     
-    // Step 1: 銘柄リストの取得
     setStatus({ phase: 'searching', message: '銘柄リストを作成しています...', current: 0, total: 0 });
     const listRes = await fetch('/api/scrape/list', { method: 'POST' });
     const listData = await listRes.json();
@@ -66,7 +64,6 @@ export default function DashboardPage() {
     setResults(stocks);
     setStatus({ phase: 'fetching', message: '詳細情報を1銘柄ずつ取得します', current: 0, total: stocks.length });
 
-    // Step 2: 1件ずつ詳細を取得
     for (let i = 0; i < stocks.length; i++) {
       const stock = stocks[i];
       setStatus({ phase: 'fetching', message: `${stock.name} (${stock.code}) を取得中...`, current: i + 1, total: stocks.length });
@@ -78,7 +75,6 @@ export default function DashboardPage() {
         setResults(prev => prev.map(s => s.code === stock.code ? { ...s, ...detailData.detail } : s));
       }
 
-      // インターバル待機 (最後の1件以外)
       if (i < stocks.length - 1) {
         const waitMs = (config.scraping.intervalMinutes || 1) * 60 * 1000;
         const waitSeconds = Math.floor(waitMs / 1000);
@@ -109,13 +105,40 @@ export default function DashboardPage() {
 
   if (!config) return <div className="p-20 text-center font-bold text-slate-400">システムを起動しています...</div>;
 
+  const categoryGroups = [
+    { name: '金券・ポイント', items: [
+      { id: '1', name: 'QUOカード' }, { id: '2', name: 'ギフトカード' }, { id: '3', name: 'グルメカード' },
+      { id: '4', name: 'デジタルギフト' }, { id: '5', name: '共通ポイント' }, { id: '6', name: '自社ポイント' },
+      { id: '7', name: 'プレミアム優待' }, { id: '8', name: '図書券' }, { id: '9', name: 'おこめ券' }
+    ]},
+    { name: '買い物・食事（割引・無料券）', items: [
+      { id: '10', name: '百貨店・スーパー' }, { id: '11', name: 'ドラッグストア' }, { id: '12', name: '衣料品' },
+      { id: '13', name: '家電' }, { id: '14', name: 'ホームセンター' }, { id: '17', name: 'レストラン' },
+      { id: '18', name: '焼肉・ハンバーグ' }, { id: '19', name: 'カフェ' }, { id: '20', name: '居酒屋' }, { id: '21', name: '中華・ラーメン' }
+    ]},
+    { name: '娯楽・移動・スポーツ', items: [
+      { id: '23', name: '乗り物' }, { id: '24', name: '旅行' }, { id: '25', name: '映画・演劇' },
+      { id: '26', name: '遊園地' }, { id: '27', name: 'カラオケ' }, { id: '28', name: '温泉' },
+      { id: '30', name: 'ゴルフ' }, { id: '31', name: 'フィットネス' }
+    ]},
+    { name: '飲食料品（現物配布）', items: [
+      { id: '39', name: '飲料' }, { id: '40', name: 'お米' }, { id: '41', name: '麺類' }, { id: '42', name: '肉類' },
+      { id: '43', name: '菓子・スイーツ' }, { id: '44', name: '果物' }, { id: '45', name: '野菜' }, { id: '46', name: '魚介類' },
+      { id: '47', name: '調味料' }, { id: '48', name: '健康食品' }, { id: '49', name: '詰め合わせ' }
+    ]},
+    { name: '日用品・カタログ・その他', items: [
+      { id: '15', name: '美容・化粧品' }, { id: '51', name: '家庭用品' }, { id: '52', name: '紙製品' },
+      { id: '53', name: 'カレンダー' }, { id: '55', name: '文具' }, { id: '56', name: '日用品詰合せ' },
+      { id: '33', name: '宿泊施設' }, { id: '35', name: '住宅関連' }, { id: '36', name: '医療・福祉' }
+    ]}
+  ];
+
   return (
     <div className="min-h-screen flex text-slate-800">
-      {/* 垂直サイドバー */}
       <div className="w-64 bg-slate-900 text-white flex flex-col shrink-0 min-h-screen">
         <div className="p-8">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+            <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center">
               <BarChart3 size={18} />
             </div>
             <span className="font-bold tracking-tight text-lg">株主優待検索</span>
@@ -126,44 +149,43 @@ export default function DashboardPage() {
         <nav className="flex-1 px-4 space-y-1">
           <button 
             onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
           >
             <LayoutDashboard size={18} /> ダッシュボード
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold transition-colors ${activeTab === 'settings' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold transition-colors ${activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
           >
             <Settings size={18} /> 検索条件の設定
           </button>
         </nav>
 
-        <div className="p-6 mt-auto border-t border-slate-800">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="p-6 mt-auto border-t border-slate-800/50">
+          <div className="flex items-center gap-2 mb-4 px-2">
             <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></div>
-            <span className="text-xs text-slate-400 font-bold">{isRunning ? 'システム稼働中' : 'アイドル'}</span>
+            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">{isRunning ? 'システム稼働中' : 'アイドル状態'}</span>
           </div>
           <button 
             onClick={handleRunScraper}
             disabled={isRunning}
-            className="w-full bg-white text-slate-900 py-3 rounded font-bold text-sm shadow-lg hover:bg-slate-100 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full bg-white text-slate-900 py-3 rounded font-bold text-sm shadow-xl hover:bg-slate-50 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            <Search size={16} /> {isRunning ? '実行中...' : '検索を開始'}
+            {isRunning ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />} 
+            {isRunning ? '取得中...' : '検索を開始'}
           </button>
         </div>
 
         <div className="px-8 py-5 bg-slate-950/40 border-t border-slate-800/50">
           <p className="text-[10px] text-slate-500 font-bold mb-1">株主優待自動検索システム</p>
-          <p className="text-[9px] text-slate-600">バージョン 7.0 | クラウド対応版</p>
+          <p className="text-[9px] text-slate-600">バージョン 8.1 | クラウド対応版</p>
         </div>
       </div>
 
-      {/* メイン コンテンツ */}
       <div className="flex-1 flex flex-col overflow-auto bg-slate-50">
         <main className="p-10 max-w-7xl w-full mx-auto">
           {activeTab === 'dashboard' ? (
             <div className="space-y-8">
-              {/* シーケンス進捗ボード */}
               <div className="main-panel p-8 rounded-2xl border-none shadow-sm bg-white overflow-hidden relative">
                  <div className="flex justify-between items-center relative z-10">
                     {[
@@ -178,10 +200,10 @@ export default function DashboardPage() {
                       
                       return (
                         <div key={step.id} className="flex flex-col items-center gap-3 relative flex-1">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110' : isDone ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 scale-110' : isDone ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
                             <step.icon size={20} />
                           </div>
-                          <span className={`text-xs font-bold ${isActive ? 'text-blue-600' : isDone ? 'text-emerald-600' : 'text-slate-400'}`}>{step.label}</span>
+                          <span className={`text-[11px] font-bold ${isActive ? 'text-indigo-600' : isDone ? 'text-emerald-600' : 'text-slate-400'}`}>{step.label}</span>
                           {idx < 3 && (
                             <div className={`absolute h-[2px] w-full top-5 left-1/2 -z-10 ${isDone ? 'bg-emerald-500' : 'bg-slate-100'}`}></div>
                           )}
@@ -194,7 +216,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-4">
                        <div className="text-sm font-bold text-slate-600">{status.message}</div>
                        {status.phase === 'fetching' && (
-                         <div className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-black">
+                         <div className="text-xs bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full font-black">
                            {status.current} / {status.total} 件目
                          </div>
                        )}
@@ -202,7 +224,7 @@ export default function DashboardPage() {
                     {status.phase === 'fetching' && (
                       <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-blue-600 transition-all duration-500" 
+                          className="h-full bg-indigo-600 transition-all duration-1000 ease-out" 
                           style={{ width: `${(status.current / status.total) * 100}%` }}
                         ></div>
                       </div>
@@ -212,58 +234,76 @@ export default function DashboardPage() {
 
               <div className="flex justify-between items-end border-b border-slate-200 pb-6">
                 <div>
-                  <h2 className="text-3xl font-black tracking-tight">ダッシュボード</h2>
-                  <p className="text-slate-500 text-sm mt-1">1件ずつ独立したAPIプロセスで取得しています</p>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900">ダッシュボード</h2>
+                  <p className="text-slate-500 text-sm mt-1">Supabaseクラウド上の最新情報を表示中</p>
                 </div>
                 <div className="text-right flex items-center gap-6">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">銘柄数</span>
-                    <p className="text-3xl font-black text-blue-600">{results.length}</p>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">取得銘柄</span>
+                    <p className="text-3xl font-black text-indigo-600">{results.length}</p>
                   </div>
                   <button 
                     onClick={downloadCSV}
                     disabled={results.length === 0}
-                    className="flex items-center gap-2 bg-white border border-slate-200 px-6 py-3 rounded font-bold text-sm text-slate-700 hover:bg-slate-50 transition-all shadow-sm active:scale-95 disabled:opacity-30"
+                    className="flex items-center gap-2 bg-white border border-slate-200 px-6 py-3 rounded-lg font-bold text-sm text-slate-700 hover:bg-slate-50 transition-all shadow-sm active:scale-95 disabled:opacity-30"
                   >
                     <FileSpreadsheet size={18} className="text-emerald-600" /> スプレッドシート出力
                   </button>
                 </div>
               </div>
 
-              <div className="main-panel rounded-lg overflow-hidden bg-white">
+              <div className="main-panel rounded-xl shadow-sm overflow-hidden bg-white border border-slate-100">
                 <table className="data-table">
                   <thead>
                     <tr>
                       <th className="w-32">状態</th>
                       <th className="w-20">コード</th>
                       <th className="w-48">銘柄名</th>
-                      <th className="w-32">株価</th>
-                      <th className="w-32">総合利回り</th>
-                      <th className="w-32">配当利回り</th>
-                      <th className="w-24">PBR</th>
-                      <th className="w-24 text-right">詳細</th>
+                      <th className="w-32 text-right">現在値</th>
+                      <th className="w-32 text-right">総合利回り</th>
+                      <th className="w-32 text-right">配当利回り</th>
+                      <th className="w-24 text-right">PBR</th>
+                      <th className="w-24 text-right pr-6 whitespace-nowrap">リンク</th>
                     </tr>
                   </thead>
                   <tbody>
                     {results.map((stock) => {
                       const isComplete = stock.status === 'complete';
                       return (
-                        <tr key={stock.code}>
-                          <td>
-                            <span className={`badge ${isComplete ? 'badge-green' : 'badge-blue'}`}>
+                        <tr key={stock.code} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="pl-6">
+                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded inline-flex items-center gap-1.5 ${isComplete ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100 animate-pulse'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isComplete ? 'bg-emerald-500' : 'bg-indigo-600'}`}></span>
                               {isComplete ? '完了' : '取得中'}
                             </span>
                           </td>
-                          <td className="font-bold text-slate-400">{stock.code}</td>
-                          <td className="font-bold">{stock.name}</td>
-                          <td className="font-bold text-slate-900">{isComplete ? `¥${stock.price}` : <span className="text-slate-200 italic">読込中</span>}</td>
-                          <td className="font-bold text-emerald-600">{stock.totalYield}</td>
-                          <td className="font-bold text-slate-500">{isComplete ? stock.dividendYield : '-'}</td>
-                          <td className="font-bold text-blue-500">{isComplete ? stock.pbr : '-'}</td>
-                          <td className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <a href={stock.yahooUrl} target="_blank" className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><ExternalLink size={16} /></a>
-                              <a href={stock.chartUrl} target="_blank" className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><TrendingUp size={16} /></a>
+                          <td className="font-bold text-slate-400 font-mono tracking-tighter">{stock.code}</td>
+                          <td>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-900 leading-tight">{stock.name}</span>
+                              <span className="text-[9px] text-slate-400 mt-0.5">{stock.timestamp?.split(' ')[1] || '待機中'} 更新</span>
+                            </div>
+                          </td>
+                          <td className="text-right font-black text-slate-900 pr-4">
+                            {isComplete ? (
+                              <span className="flex items-center justify-end">
+                                <span className="text-[10px] text-slate-300 mr-1 italic">¥</span>
+                                {Number(stock.price).toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-slate-200 italic text-xs">LOADING</span>
+                            )}
+                          </td>
+                          <td className="text-right font-black text-emerald-600 pr-4">
+                            {stock.totalYield}
+                            {stock.totalYield !== 'N/A' && <span className="text-[10px] ml-0.5 uppercase">%</span>}
+                          </td>
+                          <td className="text-right font-bold text-slate-500 pr-4">{isComplete ? stock.dividendYield : '-'}</td>
+                          <td className="text-right font-bold text-indigo-500 pr-4">{isComplete ? stock.pbr : '-'}</td>
+                          <td className="text-right pr-6">
+                            <div className="flex justify-end gap-1">
+                              <a href={stock.yahooUrl} target="_blank" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><ExternalLink size={14} /></a>
+                              <a href={stock.chartUrl} target="_blank" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><TrendingUp size={14} /></a>
                             </div>
                           </td>
                         </tr>
@@ -271,8 +311,11 @@ export default function DashboardPage() {
                     })}
                     {results.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="py-20 text-center text-slate-300 font-medium italic">
-                          {isRunning ? 'データを取得しています...' : '現在データはありません。検索を開始してください。'}
+                        <td colSpan={8} className="py-24 text-center text-slate-300 font-medium italic">
+                          <div className="flex flex-col items-center gap-2">
+                            <Search size={32} className="opacity-20 mb-2" />
+                            {isRunning ? 'データを順次取得しています...' : '現在データはありません。左下の「検索を開始」をクリックしてください。'}
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -281,50 +324,166 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            /* 設定タブ */
             <div className="space-y-10">
-              <div className="flex justify-between items-end border-b border-slate-200 pb-6">
+              <div className="flex justify-between items-end border-b border-slate-200 pb-8">
                 <div>
-                  <h2 className="text-3xl font-black tracking-tight">検索条件の設定</h2>
-                  <p className="text-slate-500 text-sm mt-1">ご希望の条件を入力して保存してください</p>
+                  <h2 className="text-4xl font-black tracking-tighter text-slate-900">検索条件の設定</h2>
+                  <p className="text-slate-500 text-sm mt-1">ご希望の条件を入力して保存してください。保存した条件が GitHub Actions にも反映されます。</p>
                 </div>
                 <button 
                   onClick={handleSaveConfig} 
                   disabled={isSaving}
-                  className="bg-blue-600 text-white px-10 py-3 rounded font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2"
+                  className="bg-indigo-600 text-white px-10 py-4 rounded-xl font-bold shadow-2xl hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
                 >
-                  <Save size={18} /> {isSaving ? '保存中...' : '設定を保存'}
+                  {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} 
+                  {isSaving ? '保存中...' : '設定をクラウドに保存'}
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-12 pb-20">
-                <div className="main-panel p-10 rounded-xl space-y-8">
-                  <div className="flex items-center gap-2 text-blue-600 font-bold border-b border-slate-100 pb-4">
-                    <Coins size={20} /> <span>1. 主要な条件</span>
+              <div className="grid grid-cols-1 gap-12 pb-24">
+                <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-10">
+                  <div className="flex items-center gap-3 text-indigo-600 font-black text-lg border-b border-slate-50 pb-5">
+                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
+                      <Coins size={20} /> 
+                    </div>
+                    <span>1. 主要な条件</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-x-12 gap-y-8">
-                    <div className="space-y-3">
-                      <label className="text-xs font-bold text-slate-400">最大投資金額</label>
-                      <div className="relative">
-                        <input type="number" value={config.search.maxAmount} placeholder="上限なし" onChange={(e) => setConfig({...config, search: {...config.search, maxAmount: e.target.value}})} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-md font-bold outline-none focus:ring-2 focus:ring-blue-100" />
-                        <span className="absolute right-4 top-4 text-slate-300 font-bold">円</span>
+                  <div className="grid grid-cols-2 gap-x-12 gap-y-10">
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最大投資金額</label>
+                      <div className="relative group">
+                        <input type="number" value={config.search.maxAmount} placeholder="上限なし" onChange={(e) => setConfig({...config, search: {...config.search, maxAmount: e.target.value}})} className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all" />
+                        <span className="absolute right-6 top-6 text-slate-300 font-bold">円</span>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <label className="text-xs font-bold text-slate-400">最低利回り（総合）</label>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（総合）</label>
                       <select 
                         value={config.search.minYieldTotal}
                         onChange={(e) => setConfig({...config, search: {...config.search, minYieldTotal: e.target.value}})}
-                        className="w-full bg-slate-50 border border-slate-200 p-4 rounded-md font-bold outline-none cursor-pointer"
+                        className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
                          <option value="">指定なし</option>
                          {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}%以上</option>)}
                       </select>
                     </div>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">おすすめ度（★）</label>
+                      <div className="flex gap-1.5">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <button key={s} onClick={() => setConfig({...config, search: {...config.search, minRecommendation: s.toString()}})} className={`option-btn flex-1 py-4 text-sm ${config.search.minRecommendation === s.toString() ? 'active' : ''}`}>★{s}以上</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">長期保有特典</label>
+                      <div className="flex gap-1.5">
+                        {[{v:'',l:'指定なし'}, {v:'exists',l:'特典あり'}, {v:'only',l:'特典のみ'}].map(o => (
+                          <button key={o.v} onClick={() => setConfig({...config, search: {...config.search, longTerm: o.v}})} className={`option-btn flex-1 py-4 text-sm ${config.search.longTerm === o.v ? 'active' : ''}`}>{o.l}</button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                {/* 既存の設定セクションはそのまま維持 */}
+
+                <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-8">
+                  <div className="flex items-center gap-3 text-indigo-600 font-black text-lg border-b border-slate-50 pb-5">
+                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
+                      <Calendar size={20} />
+                    </div>
+                    <span>2. 権利確定月</span>
+                  </div>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                    {Array.from({ length: 12 }).map((_, i) => {
+                      const month = (i + 1).toString();
+                      const selected = config.search.months.includes(month);
+                      return (
+                        <button key={month} onClick={() => {
+                           const next = selected ? config.search.months.filter((m: any) => m !== month) : [...config.search.months, month];
+                           setConfig({...config, search: {...config.search, months: next}});
+                        }} className={`option-btn h-16 font-black text-base ${selected ? 'active' : ''}`}>
+                          {month}月
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-8">
+                  <div className="flex items-center gap-3 text-indigo-600 font-black text-lg border-b border-slate-50 pb-5">
+                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
+                      <Tag size={20} />
+                    </div>
+                    <span>3. カテゴリで絞り込む</span>
+                  </div>
+                  <div className="space-y-3">
+                     {categoryGroups.map(group => {
+                       const isOpen = openGroups.includes(group.name);
+                       const selCount = group.items.filter(it => config.search.categories.includes(it.id)).length;
+                       return (
+                         <div key={group.name} className={`border rounded-2xl transition-all ${isOpen ? 'border-indigo-100 bg-slate-50/30' : 'border-slate-100 hover:border-indigo-200'}`}>
+                           <button onClick={() => setOpenGroups(isOpen ? openGroups.filter(g => g !== group.name) : [...openGroups, group.name])} className="w-full flex justify-between items-center p-6 text-left group">
+                             <div className="flex items-center gap-4">
+                               <span className={`font-black text-base transition-colors ${selCount > 0 ? 'text-indigo-600' : 'text-slate-700 group-hover:text-indigo-600'}`}>{group.name}</span>
+                               {selCount > 0 && <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md">{selCount} 個</span>}
+                             </div>
+                             <div className={`transition-transform duration-300 ${isOpen ? 'rotate-180 text-indigo-600' : 'text-slate-300'}`}>
+                               <ChevronDown size={20} />
+                             </div>
+                           </button>
+                           {isOpen && (
+                             <div className="p-8 pt-0 grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                               {group.items.map(item => {
+                                 const selected = config.search.categories.includes(item.id);
+                                 return (
+                                   <button 
+                                     key={item.id} 
+                                     onClick={() => {
+                                       const next = selected ? config.search.categories.filter((c:any) => c !== item.id) : [...config.search.categories, item.id];
+                                       setConfig({...config, search: {...config.search, categories: next}});
+                                     }}
+                                     className={`option-btn text-xs py-3.5 font-bold ${selected ? 'active' : ''}`}
+                                   >
+                                     {item.name}
+                                   </button>
+                                 )
+                               })}
+                             </div>
+                           )}
+                         </div>
+                       )
+                     })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-5">
+                      <div className="flex items-center gap-2 text-indigo-400 font-black text-xs uppercase tracking-widest">
+                        <ShieldCheck size={16} /> <span>銘柄の信用区分</span>
+                      </div>
+                      <div className="flex gap-2">
+                         {[{v: '', l:'全て'}, {v:'standard', l:'制度信用'}, {v:'loan', l:'一般信用'}].map(o => (
+                           <button key={o.v} onClick={() => setConfig({...config, search: {...config.search, creditTrading: o.v}})} className={`option-btn flex-1 py-4 font-bold text-sm ${config.search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
+                         ))}
+                      </div>
+                   </div>
+                   <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-5">
+                      <div className="flex items-center gap-2 text-indigo-400 font-black text-xs uppercase tracking-widest">
+                        <Activity size={16} /> <span>取得エンジンの設定</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black text-slate-300 uppercase">最大銘柄数</label>
+                           <input type="number" value={config.scraping.maxStocks} onChange={(e) => setConfig({...config, scraping: {...config.scraping, maxStocks: parseInt(e.target.value)}})} className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black text-slate-300 uppercase">間隔 (分)</label>
+                           <input type="number" step="0.1" value={config.scraping.intervalMinutes} onChange={(e) => setConfig({...config, scraping: {...config.scraping, intervalMinutes: parseFloat(e.target.value)}})} className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" />
+                        </div>
+                      </div>
+                   </div>
+                </div>
               </div>
             </div>
           )}
