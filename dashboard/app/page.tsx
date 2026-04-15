@@ -91,8 +91,8 @@ export default function DashboardPage() {
 
   const downloadCSV = () => {
     if (results.length === 0) return;
-    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', 'PBR', '更新日時', 'Yahoo引用元'];
-    const rows = results.map(s => [s.code, s.name, s.price, s.totalYield, s.dividendYield, s.pbr, s.timestamp || '-', s.yahooUrl]);
+    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '優待利回り', 'PBR', '更新日時', 'Yahoo引用元'];
+    const rows = results.map(s => [s.code, s.name, s.price, s.totalYield, s.dividendYield, s.yutaiYield, s.pbr, s.timestamp || '-', s.yahooUrl]);
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); 
     const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -262,6 +262,7 @@ export default function DashboardPage() {
                       <th className="w-32 text-right">現在値</th>
                       <th className="w-32 text-right">総合利回り</th>
                       <th className="w-32 text-right">配当利回り</th>
+                      <th className="w-32 text-right">優待利回り</th>
                       <th className="w-24 text-right">PBR</th>
                       <th className="w-24 text-right pr-6 whitespace-nowrap">リンク</th>
                     </tr>
@@ -298,7 +299,8 @@ export default function DashboardPage() {
                             {stock.totalYield}
                             {stock.totalYield !== 'N/A' && <span className="text-[10px] ml-0.5 uppercase">%</span>}
                           </td>
-                          <td className="text-right font-bold text-slate-500 pr-4">{isComplete ? stock.dividendYield : '-'}</td>
+                          <td className="text-right font-bold text-slate-500 pr-4">{stock.dividendYield}</td>
+                          <td className="text-right font-bold text-slate-500 pr-4">{stock.yutaiYield}</td>
                           <td className="text-right font-bold text-indigo-500 pr-4">{isComplete ? stock.pbr : '-'}</td>
                           <td className="text-right pr-6">
                             <div className="flex justify-end gap-1">
@@ -362,6 +364,28 @@ export default function DashboardPage() {
                       <select 
                         value={config.search.minYieldTotal}
                         onChange={(e) => setConfig({...config, search: {...config.search, minYieldTotal: e.target.value}})}
+                        className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
+                      >
+                         <option value="">指定なし</option>
+                         {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}%以上</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（優待）</label>
+                      <select 
+                        value={config.search.minYieldYutai}
+                        onChange={(e) => setConfig({...config, search: {...config.search, minYieldYutai: e.target.value}})}
+                        className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
+                      >
+                         <option value="">指定なし</option>
+                         {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}%以上</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（配当）</label>
+                      <select 
+                        value={config.search.minYieldDividend}
+                        onChange={(e) => setConfig({...config, search: {...config.search, minYieldDividend: e.target.value}})}
                         className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
                          <option value="">指定なし</option>

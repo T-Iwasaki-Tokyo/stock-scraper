@@ -22,6 +22,7 @@ export async function GET() {
             price: s.price || '取得中...',
             totalYield: s.total_yield,
             dividendYield: s.dividend_yield || '待機中...',
+            yutaiYield: s.yutai_yield || '待機中...',
             pbr: s.pbr || '待機中...',
             status: s.status,
             yahooUrl: s.yahoo_url,

@@ -19,20 +19,24 @@ export async function getBrowser() {
 
 // データを Supabase へ UPSERT（追加または更新）
 async function upsertStock(stock) {
+    const data = {
+        code: stock.code,
+        updated_at: new Date().toISOString()
+    };
+
+    if (stock.name) data.name = stock.name;
+    if (stock.price !== undefined) data.price = stock.price !== '取得中...' ? stock.price : null;
+    if (stock.totalYield !== undefined) data.total_yield = stock.totalYield;
+    if (stock.dividendYield !== undefined) data.dividend_yield = stock.dividendYield !== '待機中...' ? stock.dividendYield : null;
+    if (stock.yutaiYield !== undefined) data.yutai_yield = stock.yutaiYield;
+    if (stock.pbr !== undefined) data.pbr = stock.pbr !== '待機中...' ? stock.pbr : null;
+    if (stock.status) data.status = stock.status;
+    if (stock.yahooUrl) data.yahoo_url = stock.yahooUrl;
+    if (stock.chartUrl) data.chart_url = stock.chartUrl;
+
     const { error } = await supabase
         .from('stocks')
-        .upsert({
-            code: stock.code,
-            name: stock.name,
-            price: stock.price !== '取得中...' ? stock.price : null,
-            total_yield: stock.totalYield,
-            dividend_yield: stock.dividendYield !== '待機中...' ? stock.dividendYield : null,
-            pbr: stock.pbr !== '待機中...' ? stock.pbr : null,
-            status: stock.status,
-            yahoo_url: stock.yahooUrl,
-            chart_url: stock.chartUrl,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'code' });
+        .upsert(data, { onConflict: 'code' });
     
     if (error) console.error(`[Error] Supabase UPSERT failed for ${stock.code}:`, error.message);
 }
@@ -78,10 +82,21 @@ export async function fetchStockList(config) {
                 const nameLink = item.querySelector('[data-js="company"]');
                 const codeSpan = item.querySelector('[data-js="code"]');
                 const tyEl = item.querySelector('[data-js="ty"]') || item.querySelector('.rima_num');
+                
+                const pTags = Array.from(item.querySelectorAll('p'));
+                const pickYield = (labelText) => {
+                    const p = pTags.find(el => el.innerText.includes(labelText));
+                    if (!p) return 'N/A';
+                    const span = p.querySelector('.tousi_price');
+                    return span ? span.innerText.trim() : 'N/A';
+                };
+
                 return {
                     name: nameLink ? nameLink.innerText.trim() : '不明',
                     code: codeSpan ? codeSpan.innerText.trim() : null,
                     totalYield: tyEl ? tyEl.innerText.trim() : 'N/A',
+                    dividendYield: pickYield('【予想配当利回り】'),
+                    yutaiYield: pickYield('【優待利回り】'),
                     status: 'waiting'
                 };
             }).filter(s => s.code);
@@ -141,7 +156,6 @@ export async function fetchStockDetail(code) {
             const priceEl = document.querySelector('[class*="PriceBoard__price"]');
             return {
                 price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
-                dividendYield: pickNumber(getVal('配当利回り')),
                 pbr: pickNumber(getVal('PBR'))
             };
         });
