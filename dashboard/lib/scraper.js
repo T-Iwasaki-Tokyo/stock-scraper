@@ -201,7 +201,9 @@ export async function fetchStockList(config) {
                 
                 const pTags = Array.from(item.querySelectorAll('p'));
                 const pickYield = (labelText) => {
-                    const p = pTags.find(el => el.innerText.includes(labelText));
+                    // ラベル文字の間に空白があってもマッチするように正規表現を作成
+                    const regex = new RegExp('【\\s*' + labelText + '\\s*】');
+                    const p = pTags.find(el => regex.test(el.innerText));
                     if (!p) return 'N/A';
                     const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
@@ -211,15 +213,26 @@ export async function fetchStockList(config) {
                     return match ? match[0] : 'N/A';
                 };
 
-                const tyText = tyEl ? tyEl.innerText.trim() : 'N/A';
-                const tyMatch = tyText.match(/[0-9.]+[%％]?/);
+                const getVal = (selectors) => {
+                    for (const sel of selectors) {
+                        const el = item.querySelector(sel);
+                        if (el) {
+                            const text = el.innerText.trim();
+                            if (/[0-9.]+/.test(text)) {
+                                const m = text.match(/[0-9.]+[%％]?/);
+                                return m ? m[0] : null;
+                            }
+                        }
+                    }
+                    return 'N/A';
+                };
 
                 return {
                     name: nameLink ? nameLink.innerText.trim() : '不明',
                     code: codeSpan ? codeSpan.innerText.trim() : null,
-                    totalYield: tyMatch ? tyMatch[0] : 'N/A',
-                    dividendYield: pickYield('【予想配当利回り】'),
-                    yutaiYield: pickYield('【優待利回り】'),
+                    totalYield: getVal(['[data-js="ty"]', '.rima_num']),
+                    dividendYield: pickYield('予想配当利回り'),
+                    yutaiYield: pickYield('優待利回り'),
                     yutai_desc: descEl ? descEl.innerText.trim() : '',
                     status: 'waiting'
                 };
@@ -304,7 +317,8 @@ export async function fetchStockDetail(code) {
                 const pTags = Array.from(item.querySelectorAll('p'));
                 
                 const pickYield = (labelText) => {
-                    const p = pTags.find(el => el.innerText.includes(labelText));
+                    const regex = new RegExp('【\\s*' + labelText + '\\s*】');
+                    const p = pTags.find(el => regex.test(el.innerText));
                     if (!p) return 'N/A';
                     const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
@@ -313,12 +327,23 @@ export async function fetchStockDetail(code) {
                     return match ? match[0] : 'N/A';
                 };
 
-                const tyText = tyEl ? tyEl.innerText.trim() : 'N/A';
-                const tyMatch = tyText.match(/[0-9.]+[%％]?/);
+                const getVal = (selectors) => {
+                    for (const sel of selectors) {
+                        const el = item.querySelector(sel);
+                        if (el) {
+                            const text = el.innerText.trim();
+                            if (/[0-9.]+/.test(text)) {
+                                const m = text.match(/[0-9.]+[%％]?/);
+                                return m ? m[0] : null;
+                            }
+                        }
+                    }
+                    return 'N/A';
+                };
 
                 return {
-                    totalYield: tyMatch ? tyMatch[0] : 'N/A',
-                    yutaiYield: pickYield('【優待利回り】'),
+                    totalYield: getVal(['[data-js="ty"]', '.rima_num']),
+                    yutaiYield: pickYield('優待利回り'),
                     yutai_desc: descEl ? descEl.innerText.trim() : ''
                 };
             });
@@ -332,24 +357,40 @@ export async function fetchStockDetail(code) {
             await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded' });
             // .stock_table は無くなったため、テーブル要素から直接探す
             kabutanDetails = await page.evaluate(() => {
-                const els = Array.from(document.querySelectorAll('table'));
-                let found = { ma5: 'N/A', ma25: 'N/A' };
-                for (const t of els) {
-                    if (t.innerText.includes('5日線') && t.innerText.includes('25日線')) {
-                        const lines = t.innerText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                        const labelLine = lines.findIndex(l => l.includes('5日線'));
-                        if (labelLine >= 0 && labelLine + 1 < lines.length) {
-                            const labels = lines[labelLine].split(/\s+/);
-                            const values = lines[labelLine + 1].split(/\s+/);
-                            const idx5 = labels.findIndex(l => l.includes('5日線'));
-                            const idx25 = labels.findIndex(l => l.includes('25日線'));
-                            if (idx5 >= 0 && values[idx5]) found.ma5 = values[idx5];
-                            if (idx25 >= 0 && values[idx25]) found.ma25 = values[idx25];
-                        }
-                        break;
+                const results = { ma5_val: null, ma5_diff: null, ma25_val: null, ma25_diff: null };
+                const cells = Array.from(document.querySelectorAll('td, th'));
+                
+                const getRowValue = (keyword) => {
+                    const cell = cells.find(el => el.innerText.includes(keyword));
+                    if (!cell) return null;
+                    const row = cell.parentElement;
+                    if (!row) return null;
+                    // キーワードを含まないセルのうち、数値らしいものを探す
+                    const valCell = Array.from(row.cells).find(c => /[0-9,.]+/.test(c.innerText) && c !== cell);
+                    return valCell ? valCell.innerText.trim() : null;
+                };
+
+                const ma5Str = getRowValue('5日線');
+                const ma25Str = getRowValue('25日線');
+
+                const priceText = document.querySelector('.stock_price')?.innerText || '';
+                const price = parseFloat(priceText.replace(/,/g, ''));
+
+                if (ma5Str && price) {
+                    const ma5 = parseFloat(ma5Str.replace(/,/g, ''));
+                    if (ma5) {
+                        results.ma5_val = ma5;
+                        results.ma5_diff = parseFloat(((price - ma5) / ma5 * 100).toFixed(2));
                     }
                 }
-                return found;
+                if (ma25Str && price) {
+                    const ma25 = parseFloat(ma25Str.replace(/,/g, ''));
+                    if (ma25) {
+                        results.ma25_val = ma25;
+                        results.ma25_diff = parseFloat(((price - ma25) / ma25 * 100).toFixed(2));
+                    }
+                }
+                return results;
             });
         } catch (ke) {
             console.warn(`[Warn] Kabutan fetch failed for ${code}:`, ke.message);
