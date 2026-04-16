@@ -243,6 +243,13 @@ export async function fetchStockList(config) {
     await browser.close();
     const finalStocks = Array.from(new Map(allStocks.map(s => [s.code, s])).values()).slice(0, config.scraping.maxStocks);
     
+    // --- クリーンアップ: 新しい検索結果を入れる前に古いデータを削除 ---
+    console.log(`[Phase 1] 既存のデータを削除しています...`);
+    const { error: deleteError } = await supabase.from('stocks').delete().neq('code', '');
+    if (deleteError) {
+        console.error('[Error] Failed to clear stocks table:', deleteError.message);
+    }
+
     for (const s of finalStocks) {
         await upsertStock(s);
     }
