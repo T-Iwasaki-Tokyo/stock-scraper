@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Settings, LayoutDashboard, Play, Save, ExternalLink, 
   TrendingUp, Calendar, Tag, CheckCircle2, Circle, 
@@ -19,12 +19,41 @@ export default function DashboardPage() {
   const [configName, setConfigName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  const [sortKey, setSortKey] = useState<string>('code');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const fetchResults = useCallback(async () => {
     const res = await fetch('/api/results');
     const data = await res.json();
     setResults(data);
   }, []);
+
+  const sortedResults = useMemo(() => {
+    return [...results].sort((a, b) => {
+      let valA = a[sortKey];
+      let valB = b[sortKey];
+
+      // 数値変換（利回りや金額用）
+      if (['price', 'totalYield', 'dividendYield', 'yutaiYield', 'pbr', 'ma5Diff', 'ma25Diff'].includes(sortKey)) {
+        valA = parseFloat(valA) || 0;
+        valB = parseFloat(valB) || 0;
+      }
+      
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [results, sortKey, sortOrder]);
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -322,7 +351,6 @@ export default function DashboardPage() {
                     )}
                  </div>
               </div>
-
               <div className="flex justify-between items-end border-b border-slate-200 pb-6">
                 <div>
                   <h2 className="text-3xl font-black tracking-tight text-slate-900">ダッシュボード</h2>
@@ -351,20 +379,65 @@ export default function DashboardPage() {
                   <thead>
                     <tr>
                       <th className="w-32">状態</th>
-                      <th className="w-20">コード</th>
-                      <th className="w-48">銘柄名</th>
-                      <th className="w-32 text-right">現在値</th>
-                      <th className="w-32 text-right">総合利回り</th>
-                      <th className="w-32 text-right">配当利回り</th>
-                      <th className="w-32 text-right">優待利回り</th>
-                      <th className="w-24 text-right">PBR</th>
-                      <th className="w-28 text-right underline decoration-indigo-200">5日線 (乖離)</th>
-                      <th className="w-28 text-right pr-6 underline decoration-indigo-200">25日線 (乖離)</th>
+                      <th className="w-24 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('code')}>
+                        <div className="flex items-center gap-1">
+                          コード
+                          {sortKey === 'code' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-48 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('name')}>
+                        <div className="flex items-center gap-1">
+                          銘柄名
+                          {sortKey === 'name' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('price')}>
+                        <div className="flex items-center justify-end gap-1">
+                          現在値
+                          {sortKey === 'price' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('totalYield')}>
+                        <div className="flex items-center justify-end gap-1">
+                          総合利回り
+                          {sortKey === 'totalYield' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('dividendYield')}>
+                        <div className="flex items-center justify-end gap-1">
+                          配当利回り
+                          {sortKey === 'dividendYield' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('yutaiYield')}>
+                        <div className="flex items-center justify-end gap-1">
+                          優待利回り
+                          {sortKey === 'yutaiYield' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('pbr')}>
+                        <div className="flex items-center justify-end gap-1">
+                          PBR
+                          {sortKey === 'pbr' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-28 text-right underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('ma5Diff')}>
+                        <div className="flex items-center justify-end gap-1">
+                          5日線
+                          {sortKey === 'ma5Diff' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-28 text-right pr-6 underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('ma25Diff')}>
+                        <div className="flex items-center justify-end gap-1">
+                          25日線
+                          {sortKey === 'ma25Diff' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
                       <th className="w-24 text-right pr-6 whitespace-nowrap">リンク</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {results.map((stock) => {
+                    {sortedResults.map((stock) => {
                       const isComplete = stock.status === 'complete';
                       return (
                         <tr key={stock.code} className="hover:bg-slate-50/50 transition-colors">
@@ -378,52 +451,35 @@ export default function DashboardPage() {
                           <td>
                             <div className="flex flex-col">
                               <span className="font-bold text-slate-900 leading-tight">{stock.name}</span>
-                              <span className="text-[9px] text-slate-400 mt-0.5">{stock.timestamp?.split(' ')[1] || '待機中'} 更新</span>
+                              <span className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title={stock.yutai_desc}>{stock.yutai_desc || '-'}</span>
                             </div>
                           </td>
-                          <td className="text-right font-black text-slate-900 pr-4">
-                            {isComplete ? (
-                              <span className="flex items-center justify-end">
-                                <span className="text-[10px] text-slate-300 mr-1 italic">¥</span>
-                                {Number(stock.price).toLocaleString()}
-                              </span>
-                            ) : (
-                              <span className="text-slate-200 italic text-xs">LOADING</span>
-                            )}
+                          <td className="text-right font-black text-slate-700">
+                            {stock.price ? (
+                              <div className="flex flex-col items-end">
+                                <span>{Number(stock.price).toLocaleString()}円</span>
+                              </div>
+                            ) : '-'}
                           </td>
-                          <td className="text-right font-black text-emerald-600 pr-4">
-                            {stock.totalYield}
-                            {stock.totalYield !== 'N/A' && <span className="text-[10px] ml-0.5 uppercase">%</span>}
+                          <td className="text-right font-black text-indigo-600">
+                            {stock.totalYield && stock.totalYield !== 'N/A' ? `${stock.totalYield}%` : '-'}
                           </td>
-                          <td className="text-right font-bold text-slate-600 pr-4">
-                            {stock.dividendYield}
-                            {stock.dividendYield !== 'N/A' && stock.dividendYield !== '待機中...' && <span className="text-[10px] ml-0.5 text-slate-400">%</span>}
+                          <td className="text-right font-bold text-slate-500">
+                            {stock.dividendYield && stock.dividendYield !== 'N/A' ? `${stock.dividendYield}%` : '-'}
                           </td>
-                          <td className="text-right font-bold text-indigo-600/80 pr-4">
-                            {stock.yutaiYield}
-                            {stock.yutaiYield !== 'N/A' && stock.yutaiYield !== '待機中...' && <span className="text-[10px] ml-0.5 text-indigo-300">%</span>}
+                          <td className="text-right font-bold text-slate-500">
+                            {stock.yutaiYield && stock.yutaiYield !== 'N/A' ? `${stock.yutaiYield}%` : '-'}
                           </td>
-                          <td className="text-right font-bold text-indigo-500 pr-4">{isComplete ? stock.pbr : '-'}</td>
-                          <td className="text-right pr-4">
-                            <div className="flex flex-col items-end">
-                              <span className="text-[11px] font-bold text-slate-700">{stock.ma5_val || '-'}</span>
-                              <span className={`text-[10px] font-black ${Number(stock.ma5_diff) >= 0 ? 'text-rose-500' : 'text-blue-500'}`}>
-                                {stock.ma5_diff ? `${Number(stock.ma5_diff) > 0 ? '+' : ''}${stock.ma5_diff}%` : '-'}
-                              </span>
-                            </div>
+                          <td className="text-right font-bold text-slate-500">{stock.pbr || '-'}</td>
+                          <td className={`text-right font-bold ${parseFloat(stock.ma5Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}`}>
+                            {stock.ma5Diff ? `${stock.ma5Diff}%` : '-'}
                           </td>
-                          <td className="text-right pr-4">
-                            <div className="flex flex-col items-end">
-                              <span className="text-[11px] font-bold text-slate-700">{stock.ma25_val || '-'}</span>
-                              <span className={`text-[10px] font-black ${Number(stock.ma25_diff) >= 0 ? 'text-rose-500' : 'text-blue-500'}`}>
-                                {stock.ma25_diff ? `${Number(stock.ma25_diff) > 0 ? '+' : ''}${stock.ma25_diff}%` : '-'}
-                              </span>
-                            </div>
+                          <td className={`text-right pr-6 font-bold ${parseFloat(stock.ma25Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}`}>
+                            {stock.ma25Diff ? `${stock.ma25Diff}%` : '-'}
                           </td>
                           <td className="text-right pr-6">
                             <div className="flex justify-end gap-1">
-                              <a href={stock.yahooUrl} target="_blank" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><ExternalLink size={14} /></a>
-                              <a href={stock.chartUrl} target="_blank" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><TrendingUp size={14} /></a>
+                              <a href={`https://kabutan.jp/stock/chart?code=${stock.code}`} target="_blank" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-all"><ExternalLink size={14} /></a>
                             </div>
                           </td>
                         </tr>
@@ -431,11 +487,9 @@ export default function DashboardPage() {
                     })}
                     {results.length === 0 && (
                       <tr>
-                        <td colSpan={11} className="py-24 text-center text-slate-300 font-medium italic">
-                          <div className="flex flex-col items-center gap-2">
-                            <Search size={32} className="opacity-20 mb-2" />
-                            {isRunning ? 'データを順次取得しています...' : '現在データはありません。左下の「検索を開始」をクリックしてください。'}
-                          </div>
+                        <td colSpan={11} className="py-32 text-center text-slate-400 bg-slate-50/20">
+                          <p className="font-bold">データがありません</p>
+                          <p className="text-xs mt-1">「検索を開始」ボタンを押して調査を開始してください。</p>
                         </td>
                       </tr>
                     )}
@@ -632,12 +686,49 @@ export default function DashboardPage() {
                     </div>
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">長期保有特典</label>
-                      <div className="flex gap-1.5">
-                        {[{v:'',l:'指定なし'}, {v:'exists',l:'特典あり'}, {v:'only',l:'特典のみ'}].map(o => {
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          {v:'',l:'全銘柄'}, 
+                          {v:'exists',l:'長期優待あり'}, 
+                          {v:'only',l:'長期優待のみ'}, 
+                          {v:'none',l:'長期優待なし'}
+                        ].map(o => {
                           const current = config.current || config;
                           const search = current.search || {};
                           return (
-                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, longTerm: o.v}}})} className={`option-btn flex-1 py-4 text-sm ${search.longTerm === o.v ? 'active' : ''}`}>{o.l}</button>
+                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, longTerm: o.v}}})} className={`option-btn flex-1 py-4 text-xs min-w-[100px] ${search.longTerm === o.v ? 'active' : ''}`}>{o.l}</button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">銘柄の信用区分</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          {v:'',l:'全銘柄'}, 
+                          {v:'standard',l:'制度信用銘柄'}, 
+                          {v:'loan',l:'貸借銘柄'}
+                        ].map(o => {
+                          const current = config.current || config;
+                          const search = current.search || {};
+                          return (
+                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, creditTrading: o.v}}})} className={`option-btn flex-1 py-4 text-xs min-w-[100px] ${search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">疑義注記（重要事象等）</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          {v:'',l:'全銘柄'}, 
+                          {v:'include',l:'疑義注記を含む'}, 
+                          {v:'exclude',l:'疑義注記を含まない'}
+                        ].map(o => {
+                          const current = config.current || config;
+                          const search = current.search || {};
+                          return (
+                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, includeGoingConcern: o.v}}})} className={`option-btn flex-1 py-4 text-xs min-w-[120px] ${search.includeGoingConcern === o.v ? 'active' : ''}`}>{o.l}</button>
                           );
                         })}
                       </div>

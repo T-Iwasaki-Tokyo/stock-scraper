@@ -57,25 +57,91 @@ export async function fetchStockList(config) {
     const page = await context.newPage();
 
     const { search } = config.current || config;
-    const params = new URLSearchParams();
-    if (search.months?.length) params.set('fm', search.months.join(','));
-    if (search.categories?.length) params.set('cat', search.categories.join(','));
-    params.set('mp', `${search.minAmount || ''},${search.maxAmount || ''}`);
-    params.set('st', search.minRecommendation || '');
-    params.set('ty', `${search.minYieldTotal || ''},`);
-    params.set('dy', `${search.minYieldDividend || ''},`);
-    params.set('py', `${search.minYieldYutai || ''},`);
     
-    if (search.longTerm === 'only') params.set('lpo', '2');
-    else if (search.longTerm === 'exists') params.set('lp', '1');
-    if (search.creditTrading === 'standard') params.set('sk', '1');
-    else if (search.creditTrading === 'loan') params.set('lk', '1');
+    // 検索フォームページへ移動
+    await page.goto('https://www.kabuyutai.com/tool/', { waitUntil: 'networkidle' });
 
-    const searchUrl = `https://www.kabuyutai.com/tool/shiborikomi/?${params.toString()}`;
+    // --- 検索条件入力 ---
     
+    // 権利確定月: 一旦すべて解除してからチェック
+    await page.click('.clear-all'); // 「すべて選択/解除」ボタン
+    if (search.months?.length) {
+        for (const month of search.months) {
+            await page.check(`input[name="fm"][value="${month}"]`);
+        }
+    }
+
+    // おすすめ度 (st)
+    if (search.minRecommendation) {
+        await page.selectOption('select[name="st"]', search.minRecommendation);
+    }
+
+    // 投資金額 (mpf, mpt)
+    if (search.minAmount) await page.selectOption('select[name="mpf"]', search.minAmount);
+    if (search.maxAmount) await page.selectOption('select[name="mpt"]', search.maxAmount);
+
+    // 利回り (下限のみセット)
+    if (search.minYieldYutai) await page.selectOption('select[name="pyf"]', search.minYieldYutai);
+    if (search.minYieldDividend) await page.selectOption('select[name="dyf"]', search.minYieldDividend);
+    if (search.minYieldTotal) await page.selectOption('select[name="tyf"]', search.minYieldTotal);
+
+    // カテゴリ: 一旦すべて解除してからチェック
+    // サイトの「すべて選択/解除」は月と共通のクエリセレクタで動く可能性があるため、個別に処理
+    const categories = search.categories || [];
+    if (categories.length > 0) {
+        // カテゴリのチェックボックスをすべて外す（カテゴリセクション内のものを特定して外すのが正解だが、一旦愚直にやる）
+        const catCheckboxes = await page.$$('input[name="cat"]');
+        for (const cb of catCheckboxes) {
+            if (await cb.isChecked()) await cb.uncheck();
+        }
+        for (const catId of categories) {
+            await page.check(`input[name="cat"][value="${catId}"]`);
+        }
+    }
+
+    // 長期保有特典 (lp, lpo)
+    if (search.longTerm === 'exists') {
+        await page.check('input[name="lp"][value="1"]');
+    } else if (search.longTerm === 'only') {
+        await page.check('input[name="lp"][value="1"]');
+        await page.check('input[name="lpo"]');
+    } else if (search.longTerm === 'none') {
+        await page.check('input[name="lp"][value="2"]');
+    } else {
+        await page.check('input[name="lp"][value=""]'); // 全銘柄
+    }
+
+    // 信用区分 (cl)
+    if (search.creditTrading === 'standard') {
+        await page.check('input[name="cl"][value="制度信用銘柄"]');
+    } else if (search.creditTrading === 'loan') {
+        await page.check('input[name="cl"][value="貸借銘柄"]');
+    } else {
+        await page.check('input[name="cl"][value=""]'); // 全銘柄
+    }
+
+    // 疑義注記 (dn)
+    if (search.includeGoingConcern === 'include') {
+        await page.check('input[name="dn"][value="1"]');
+    } else if (search.includeGoingConcern === 'exclude') {
+        await page.check('input[name="dn"][value="-1"]');
+    } else {
+        await page.check('input[name="dn"][value=""]'); // 全銘柄
+    }
+
+    // 「この条件で検索する」ボタンをクリック
+    // サイトの実装に合わせる（input[type="image"] or button）
+    await Promise.all([
+        page.waitForNavigation({ waitUntil: 'networkidle' }),
+        page.click('input[name="btn"]')
+    ]);
+
+    // スクリーンショット撮影
+    await page.screenshot({ path: 'public/screenshots/last_search.png', fullPage: true });
+    console.log('[Phase 1] 検索結果スクリーンショット保存完了');
+
+    // --- 結果解析 ---
     let allStocks = [];
-    await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-    
     while (true) {
         try {
             await page.waitForSelector('.table_tr', { timeout: 10000 });
@@ -88,6 +154,7 @@ export async function fetchStockList(config) {
                 const nameLink = item.querySelector('[data-js="company"]');
                 const codeSpan = item.querySelector('[data-js="code"]');
                 const tyEl = item.querySelector('[data-js="ty"]') || item.querySelector('.rima_num');
+                const descEl = item.querySelector('.yutai_content_text');
                 
                 const pTags = Array.from(item.querySelectorAll('p'));
                 const pickYield = (labelText) => {
@@ -95,7 +162,6 @@ export async function fetchStockList(config) {
                     if (!p) return 'N/A';
                     const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
-                    // 数値部分のみを抽出して正規化（%が含まれていても外す）
                     const val = span.innerText.trim();
                     const match = val.match(/[0-9.]+/);
                     return match ? match[0] : 'N/A';
@@ -107,6 +173,7 @@ export async function fetchStockList(config) {
                     totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+/) || ['N/A'])[0] : 'N/A',
                     dividendYield: pickYield('【予想配当利回り】'),
                     yutaiYield: pickYield('【優待利回り】'),
+                    yutai_desc: descEl ? descEl.innerText.trim() : '',
                     status: 'waiting'
                 };
             }).filter(s => s.code);
@@ -129,7 +196,6 @@ export async function fetchStockList(config) {
     await browser.close();
     const finalStocks = Array.from(new Map(allStocks.map(s => [s.code, s])).values()).slice(0, config.scraping.maxStocks);
     
-    // Supabase へ全リストを一旦保存
     for (const s of finalStocks) {
         await upsertStock(s);
     }

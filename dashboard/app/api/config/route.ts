@@ -9,12 +9,13 @@ const DEFAULT_CONFIG = {
         maxAmount: '',
         minYieldYutai: '',
         minYieldDividend: '',
-        minYieldTotal: '3',
-        months: ['3', '9'],
-        minRecommendation: '3',
+        minYieldTotal: '',
+        months: [],
+        minRecommendation: '',
         categories: [],
-        longTerm: '',
-        creditTrading: ''
+        longTerm: '',             // 全銘柄
+        creditTrading: '',        // 全銘柄
+        includeGoingConcern: ''   // 全銘柄
     },
     scraping: {
         intervalMinutes: 1,
