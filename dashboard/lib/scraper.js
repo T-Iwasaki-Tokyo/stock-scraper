@@ -67,30 +67,28 @@ export async function fetchStockList(config) {
 
     // --- 検索条件入力 (堅牢化版) ---
     
-    // 権利確定月とカテゴリを DOM 操作で直接セット (表示状態に関わらず確実に実行)
-    await page.evaluate((s) => {
-        // 1. 権利確定月
-        document.querySelectorAll('input[name="fm"]').forEach(el => {
-            el.checked = s.months?.includes(el.value) || false;
-        });
+    // 1. 権利確定月 (fm[])
+    const allMonths = Array.from({length: 12}, (_, i) => (i + 1).toString());
+    for (const m of allMonths) {
+        const isChecked = search.months?.includes(m);
+        const selector = `input[name="fm[]"][value="${m}"]`;
+        if (await page.locator(selector).isVisible()) {
+            if (isChecked) await page.check(selector);
+            else await page.uncheck(selector);
+        }
+    }
 
-        // 2. カテゴリ
-        const catMap = {
-            '金券・ポイント': '金券・ポイント1',
-            '割引券・無料券': '割引券・無料券2',
-            '優待品': '優待品3',
-            'カタログ': 'カタログ4',
-            'その他': 'その他5'
-        };
-        document.querySelectorAll('input[name^="cat_group"]').forEach(el => {
-            el.checked = false; // 一旦クリア
-            Object.keys(catMap).forEach(key => {
-                if (s.categories?.includes(key) && el.value === catMap[key]) {
-                    el.checked = true;
-                }
-            });
-        });
-    }, search);
+    // 2. カテゴリ (cat_group)
+    // ページ上のすべてのカテゴリ入力を取得して、設定に含まれるものだけチェックを入れる
+    const catInputs = await page.locator('input[name="cat_group"]').all();
+    for (const input of catInputs) {
+        const val = await input.getAttribute('value');
+        if (search.categories?.includes(val)) {
+            await input.check();
+        } else {
+            await input.uncheck();
+        }
+    }
 
     // おすすめ度 (st)
     if (search.minRecommendation) {
@@ -137,6 +135,8 @@ export async function fetchStockList(config) {
     }
 
     // --- スクリーンショット撮影（検索条件入力後・検索実行前） ---
+    // 反映を確実にするため少し待機
+    await page.waitForTimeout(500);
     const screenshotPath = 'public/screenshots/last_search.png';
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
@@ -197,10 +197,20 @@ export async function fetchStockList(config) {
                 
                 const pTags = Array.from(item.querySelectorAll('p'));
                 const pickYield = (labelText) => {
-                    const p = pTags.find(el => el.innerText.includes(labelText));
-                    if (!p) return 'N/A';
-                    const span = p.querySelector('.tousi_price');
+                    // item全体からlabelTextを含む要素を探す（pタグに限定しない）
+                    const targetEl = Array.from(item.querySelectorAll('*')).find(el => 
+                        el.children.length === 0 && el.innerText.includes(labelText)
+                    ) || Array.from(item.querySelectorAll('*')).find(el => 
+                        el.innerText.includes(labelText)
+                    );
+
+                    if (!targetEl) return 'N/A';
+                    
+                    // その要素の親や周辺から .tousi_price クラスを探す
+                    const container = targetEl.closest('div, p, td') || item;
+                    const span = container.querySelector('.tousi_price');
                     if (!span) return 'N/A';
+                    
                     const val = span.innerText.trim();
                     const match = val.match(/[0-9.]+%?/);
                     return match ? match[0] : 'N/A';
@@ -289,10 +299,18 @@ export async function fetchStockDetail(code) {
                 const pTags = Array.from(item.querySelectorAll('p'));
                 
                 const pickYield = (labelText) => {
-                    const p = pTags.find(el => el.innerText.includes(labelText));
-                    if (!p) return 'N/A';
-                    const span = p.querySelector('.tousi_price');
+                    const targetEl = Array.from(item.querySelectorAll('*')).find(el => 
+                        el.children.length === 0 && el.innerText.includes(labelText)
+                    ) || Array.from(item.querySelectorAll('*')).find(el => 
+                        el.innerText.includes(labelText)
+                    );
+
+                    if (!targetEl) return 'N/A';
+                    
+                    const container = targetEl.closest('div, p, td') || item;
+                    const span = container.querySelector('.tousi_price');
                     if (!span) return 'N/A';
+                    
                     const val = span.innerText.trim();
                     const match = val.match(/[0-9.]+%?/);
                     return match ? match[0] : 'N/A';
