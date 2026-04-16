@@ -61,15 +61,32 @@ export async function fetchStockList(config) {
     // 検索フォームページへ移動
     await page.goto('https://www.kabuyutai.com/tool/', { waitUntil: 'networkidle' });
 
-    // --- 検索条件入力 ---
+    // --- 検索条件入力 (堅牢化版) ---
     
-    // 権利確定月: 一旦すべて解除してからチェック
-    await page.click('.clear-all'); // 「すべて選択/解除」ボタン
-    if (search.months?.length) {
-        for (const month of search.months) {
-            await page.check(`input[name="fm"][value="${month}"]`);
-        }
-    }
+    // 権利確定月とカテゴリを DOM 操作で直接セット (表示状態に関わらず確実に実行)
+    await page.evaluate((s) => {
+        // 1. 権利確定月
+        document.querySelectorAll('input[name="fm"]').forEach(el => {
+            el.checked = s.months?.includes(el.value) || false;
+        });
+
+        // 2. カテゴリ
+        const catMap = {
+            '金券・ポイント': '金券・ポイント1',
+            '割引券・無料券': '割引券・無料券2',
+            '優待品': '優待品3',
+            'カタログ': 'カタログ4',
+            'その他': 'その他5'
+        };
+        document.querySelectorAll('input[name^="cat_group"]').forEach(el => {
+            el.checked = false; // 一旦クリア
+            Object.keys(catMap).forEach(key => {
+                if (s.categories?.includes(key) && el.value === catMap[key]) {
+                    el.checked = true;
+                }
+            });
+        });
+    }, search);
 
     // おすすめ度 (st)
     if (search.minRecommendation) {
@@ -84,34 +101,6 @@ export async function fetchStockList(config) {
     if (search.minYieldYutai) await page.selectOption('select[name="pyf"]', search.minYieldYutai);
     if (search.minYieldDividend) await page.selectOption('select[name="dyf"]', search.minYieldDividend);
     if (search.minYieldTotal) await page.selectOption('select[name="tyf"]', search.minYieldTotal);
-
-    // カテゴリ: 「一度すべてにレ点をつけた後、選択されていないものを消す」
-    const catGroups = [
-        '金券・ポイント1',
-        '割引券・無料券2',
-        '優待品3',
-        'カタログ4',
-        'その他5'
-    ];
-    
-    // カテゴリセクションの「すべて選択」をクリック (class="clear-all" が複数あるため、カテゴリ付近のものを特定)
-    const catSection = page.locator('div.check-item-right').last(); // おそらく最後の方がカテゴリ用
-    if (await catSection.isVisible()) {
-        await catSection.click();
-    } else {
-        // 見つからない場合は愚直に全グループをチェック
-        for (const cg of catGroups) {
-            await page.check(`input[name="cat_group"][value="${cg}"]`);
-        }
-    }
-
-    // 選択されていないカテゴリのレ点を消す
-    const selectedCats = search.categories || [];
-    for (const cg of catGroups) {
-        if (!selectedCats.includes(cg)) {
-            await page.uncheck(`input[name="cat_group"][value="${cg}"]`);
-        }
-    }
 
     // 長期保有特典 (lp, lpo)
     if (search.longTerm === 'exists') {
@@ -237,11 +226,10 @@ export async function fetchStockDetail(code) {
     const page = await context.newPage();
 
     try {
+        // --- 1. Yahoo Finance ---
         await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('body', { timeout: 10000 });
-        await new Promise(r => setTimeout(r, 2000));
         
-        // --- Yahoo Finance データの抽出 ---
         const yahooDetails = await page.evaluate(() => {
             const pickNumber = (text) => {
                 if (!text) return 'N/A';
@@ -258,11 +246,44 @@ export async function fetchStockDetail(code) {
             const priceEl = document.querySelector('[class*="PriceBoard__price"]');
             return {
                 price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
-                pbr: pickNumber(getVal('PBR'))
+                pbr: pickNumber(getVal('PBR')),
+                dividendYield: pickNumber(getVal('配当利回り'))
             };
         });
 
-        // --- 株探 (Kabutan) データの抽出 ---
+        // --- 2. 楽しい株主優待＆配当 (利回り補完) ---
+        let yutaiDetails = { yutaiYield: 'N/A', totalYield: 'N/A', yutai_desc: '' };
+        try {
+            await page.goto(`https://www.kabuyutai.com/tool/index.php?code=${code}&btn=%E3%81%93%E3%81%AE%E6%9D%A1%E4%BB%B6%E3%81%A7%E6%A4%9C%E7%B4%A2%E3%81%99%E3%82%8B`, { waitUntil: 'domcontentloaded' });
+            yutaiDetails = await page.evaluate(() => {
+                const item = document.querySelector('.table_tr');
+                if (!item) return { yutaiYield: 'N/A', totalYield: 'N/A', yutai_desc: '' };
+
+                const tyEl = item.querySelector('[data-js="ty"]') || item.querySelector('.rima_num');
+                const descEl = item.querySelector('.yutai_content_text');
+                const pTags = Array.from(item.querySelectorAll('p'));
+                
+                const pickYield = (labelText) => {
+                    const p = pTags.find(el => el.innerText.includes(labelText));
+                    if (!p) return 'N/A';
+                    const span = p.querySelector('.tousi_price');
+                    if (!span) return 'N/A';
+                    const val = span.innerText.trim();
+                    const match = val.match(/[0-9.]+/);
+                    return match ? match[0] : 'N/A';
+                };
+
+                return {
+                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+/) || ['N/A'])[0] : 'N/A',
+                    yutaiYield: pickYield('【優待利回り】'),
+                    yutai_desc: descEl ? descEl.innerText.trim() : ''
+                };
+            });
+        } catch (ye) {
+            console.warn(`[Warn] Kabuyutai fetch failed for ${code}:`, ye.message);
+        }
+
+        // --- 3. 株探 (Kabutan) ---
         let kabutanDetails = { ma5_val: 'N/A', ma5_diff: 'N/A', ma25_val: 'N/A', ma25_diff: 'N/A' };
         try {
             await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded' });
@@ -302,6 +323,7 @@ export async function fetchStockDetail(code) {
         const stockData = {
             code,
             ...yahooDetails,
+            ...yutaiDetails,
             ...kabutanDetails,
             yahooUrl: `https://finance.yahoo.co.jp/quote/${code}.T`,
             chartUrl: `https://finance.yahoo.co.jp/quote/${code}.T/chart`,
@@ -314,7 +336,7 @@ export async function fetchStockDetail(code) {
         await browser.close();
         return stockData;
     } catch (e) {
-        await browser.close();
+        if (browser) await browser.close();
         throw e;
     }
 }
@@ -322,62 +344,79 @@ export async function fetchStockDetail(code) {
 // GitHub Actions 等でコマンドラインからも実行可能なようにエントリポイントを用意
 if (process.argv[1]?.endsWith('scraper.js')) {
     (async () => {
-        console.log('[Start] 実行開始...');
-        
-        // 現在の設定を Supabase から取得
-        const { data: configRows, error: configError } = await supabase
-            .from('configs')
-            .select('*')
-            .eq('is_current', true)
-            .single();
-
-        if (configError) {
-            console.error('[Error] Config fetch failed:', configError.message);
-            process.exit(1);
-        }
-
-        const config = configRows;
-        let list = [];
-
-        if (config.mode === 'file') {
-            console.log('[Mode] ファイル読み込みモード');
-            const { data: targetStocks, error: targetError } = await supabase
-                .from('target_stocks')
-                .select('code, name');
+        try {
+            console.log('==================================================');
+            console.log('[Start] Stock Scraper Automation 実行開始');
+            console.log(`[Time] ${new Date().toLocaleString('ja-JP')}`);
+            console.log('==================================================');
             
-            if (targetError) {
-                console.error('[Error] Target stocks fetch failed:', targetError.message);
+            // 現在の設定を Supabase から取得
+            console.log('[1/4] 設定を取得中...');
+            const { data: configRows, error: configError } = await supabase
+                .from('configs')
+                .select('*')
+                .eq('is_current', true)
+                .single();
+
+            if (configError) {
+                console.error('[Error] 設定の取得に失敗しました:', configError.message);
                 process.exit(1);
             }
 
-            list = (targetStocks || []).map(s => ({
-                code: s.code,
-                name: s.name,
-                status: 'pending'
-            }));
-        } else {
-            console.log('[Mode] 条件検索モード');
-            list = await fetchStockList(config);
-        }
+            const config = configRows;
+            let list = [];
 
-        console.log(`[Process] ${list.length} 件の銘柄を処理します...`);
-        
-        for (let i = 0; i < list.length; i++) {
-            const s = list[i];
-            console.log(`[${i + 1}/${list.length}] ${s.name} (${s.code}) を取得中...`);
-            try {
-                await fetchStockDetail(s.code);
-            } catch (e) {
-                console.error(`[Error] Detail fetch failed for ${s.code}:`, e.message);
+            if (config.mode === 'file') {
+                console.log('[2/4] モード: ファイル読み込み');
+                const { data: targetStocks, error: targetError } = await supabase
+                    .from('target_stocks')
+                    .select('code, name');
+                
+                if (targetError) {
+                    console.error('[Error] 銘柄リストの取得に失敗しました:', targetError.message);
+                    process.exit(1);
+                }
+
+                list = (targetStocks || []).map(s => ({
+                    code: s.code,
+                    name: s.name,
+                    status: 'pending'
+                }));
+            } else {
+                console.log('[2/4] モード: 条件検索');
+                list = await fetchStockList(config);
+            }
+
+            console.log(`[3/4] ${list.length} 件の銘柄を処理対象として認識しました`);
+            
+            for (let i = 0; i < list.length; i++) {
+                const s = list[i];
+                console.log(`      (${i + 1}/${list.length}) ${s.name} (${s.code}) を詳細取得中...`);
+                try {
+                    await fetchStockDetail(s.code);
+                } catch (e) {
+                    console.error(`      [Warn] ${s.code} の取得に失敗しました:`, e.message);
+                }
+                
+                if (i < list.length - 1) {
+                    const waitMinutes = config.scraping?.intervalMinutes || 1;
+                    const waitMs = waitMinutes * 60 * 1000;
+                    console.log(`      -> 次の銘柄まで ${waitMinutes} 分待機します...`);
+                    await new Promise(r => setTimeout(r, waitMs));
+                }
             }
             
-            if (i < list.length - 1) {
-                const waitMinutes = config.scraping?.intervalMinutes || 1;
-                console.log(`[Wait] ${waitMinutes} 分間待機します...`);
-                await new Promise(r => setTimeout(r, waitMinutes * 60 * 1000));
-            }
+            console.log('==================================================');
+            console.log('[4/4] すべての処理が完了しました');
+            console.log(`[End] 終了時刻: ${new Date().toLocaleString('ja-JP')}`);
+            console.log('==================================================');
+            process.exit(0);
+        } catch (globalError) {
+            console.error('==================================================');
+            console.error('[Critical Error] 実行中に致命的なエラーが発生しました');
+            console.error(globalError);
+            console.error('==================================================');
+            process.exit(1);
         }
-        
-        console.log('[End] すべての処理が完了しました');
     })();
 }

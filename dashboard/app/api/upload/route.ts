@@ -57,3 +57,23 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+export async function DELETE() {
+    try {
+        // 全銘柄を削除
+        await supabase.from('target_stocks').delete().neq('code', '');
+        
+        // モードを 'condition' に戻す
+        await supabase
+            .from('configs')
+            .update({ mode: 'condition' })
+            .eq('is_current', true);
+
+        return NextResponse.json({ 
+            success: true, 
+            message: '読み込まれた銘柄リストをクリアし、条件指定モードに戻しました。' 
+        });
+    } catch (error: any) {
+        console.error('Delete Upload Error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

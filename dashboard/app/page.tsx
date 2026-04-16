@@ -5,7 +5,7 @@ import {
   Settings, LayoutDashboard, Play, Save, ExternalLink, 
   TrendingUp, Calendar, Tag, CheckCircle2, Circle, 
   ChevronDown, ChevronUp, Star, Percent, Coins, Clock, ShieldCheck, RefreshCw, BarChart3, Search,
-  Download, FileSpreadsheet, Activity, CheckCircle
+  Download, FileSpreadsheet, Activity, CheckCircle, Trash2, Image, ImageOff
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -26,7 +26,7 @@ export default function DashboardPage() {
   const [lastScreenshotUrl, setLastScreenshotUrl] = useState<string | null>(null);
 
   const fetchResults = useCallback(async () => {
-    const res = await fetch('/api/results');
+    const res = await fetch('/api/results', { cache: 'no-store' });
     const data = await res.json();
     setResults(data);
     
@@ -158,6 +158,20 @@ export default function DashboardPage() {
       }
     } catch (e) {
       alert('削除に失敗しました');
+    }
+  };
+
+  const handleClearUpload = async () => {
+    if (!confirm('アップロードされたリストをクリアしてもよろしいですか？\n条件指定モードに戻ります。')) return;
+    try {
+      const res = await fetch('/api/upload', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchConfig();
+      }
+    } catch (e) {
+      alert('クリアに失敗しました');
     }
   };
 
@@ -322,42 +336,94 @@ export default function DashboardPage() {
                       { id: 'fetching', label: '詳細取得', icon: Activity },
                       { id: 'completed', label: '完了', icon: CheckCircle }
                     ].map((step, idx) => {
+                      const phases = ['idle', 'searching', 'fetching', 'completed'];
+                      const currentIdx = phases.indexOf(status.phase);
+                      const stepIdx = phases.indexOf(step.id);
                       const isActive = status.phase === step.id;
-                      const isPast = ['idle', 'searching', 'fetching', 'completed'].indexOf(status.phase) > ['idle', 'searching', 'fetching', 'completed'].indexOf(step.id);
-                      const isDone = status.phase === 'completed' || isPast;
+                      const isDone = stepIdx < currentIdx || status.phase === 'completed';
                       
                       return (
                         <div key={step.id} className="flex flex-col items-center gap-3 relative flex-1">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 scale-110' : isDone ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 z-10 ${isActive ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 scale-110 shadow-lg' : isDone ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>
                             <step.icon size={20} />
                           </div>
-                          <span className={`text-[11px] font-bold ${isActive ? 'text-indigo-600' : isDone ? 'text-emerald-600' : 'text-slate-400'}`}>{step.label}</span>
+                          <span className={`text-[11px] font-bold tracking-tighter ${isActive ? 'text-indigo-600' : isDone ? 'text-emerald-600' : 'text-slate-400'}`}>{step.label}</span>
                           {idx < 3 && (
-                            <div className={`absolute h-[2px] w-full top-5 left-1/2 -z-10 ${isDone ? 'bg-emerald-500' : 'bg-slate-100'}`}></div>
+                            <div className={`absolute h-[3px] w-full top-5 left-1/2 -z-0 transition-colors duration-500 ${isDone ? 'bg-emerald-500' : 'bg-slate-100'}`}></div>
                           )}
                         </div>
                       )
                     })}
                  </div>
                  
-                 <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                       <div className="text-sm font-bold text-slate-600">{status.message}</div>
-                       {(status.phase === 'fetching' || status.phase === 'completed') && results.length > 0 && (
-                         <div className="text-xs bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full font-black">
-                           {results.filter(r => r.status === 'complete').length} / {results.length} 件完了 ({Math.round((results.filter(r => r.status === 'complete').length / results.length) * 100)}%)
-                         </div>
-                       )}
+                 <div className="mt-8 pt-8 border-t border-slate-50">
+                    <div className="flex flex-col gap-4">
+                       <div className="flex justify-between items-end">
+                          <div className="space-y-1">
+                             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Status</div>
+                             <div className="text-lg font-black text-slate-800 leading-none animate-in fade-in slide-in-from-left-2">{status.message}</div>
+                          </div>
+                          {(status.phase === 'fetching' || status.phase === 'completed') && results.length > 0 && (
+                            <div className="text-right">
+                               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Items Processed</div>
+                               <div className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">
+                                 {results.filter(r => r.status === 'complete').length} / {results.length}
+                               </div>
+                            </div>
+                          )}
+                       </div>
+                       
+                       <div className="relative w-full h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                          <div 
+                            className={`h-full transition-all duration-1000 ease-out flex items-center justify-end pr-2 text-[8px] font-bold text-white shadow-lg ${status.phase === 'completed' ? 'bg-emerald-500' : 'bg-indigo-600 animate-pulse'}`}
+                            style={{ width: `${(status.phase === 'completed' ? 100 : (status.total > 0 ? (status.current / status.total) * 100 : (status.phase === 'searching' ? 25 : 0)))}%` }}
+                          >
+                             {status.total > 0 && Math.round((status.current / status.total) * 100) > 10 && `${Math.round((status.current / status.total) * 100)}%`}
+                          </div>
+                       </div>
                     </div>
-                    {status.phase === 'fetching' && (
-                      <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-indigo-600 transition-all duration-1000 ease-out" 
-                          style={{ width: `${(status.current / status.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    )}
                  </div>
+              </div>
+
+              {/* 最新の検索証拠セクション */}
+              <div className="main-panel p-6 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                   <div className="flex items-center gap-3">
+                      <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
+                         <Image size={20} />
+                      </div>
+                      <div>
+                         <h3 className="text-lg font-black text-slate-800 tracking-tight">最新の検索証拠</h3>
+                         <p className="text-xs text-slate-500 font-bold">実際に公式サイトを操作した際の全画面キャプチャです</p>
+                      </div>
+                   </div>
+                   {lastScreenshotUrl && (
+                      <a href={lastScreenshotUrl} target="_blank" className="text-xs font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-3 py-2 rounded-lg transition-all active:scale-95">
+                         <ExternalLink size={14} /> 全画面で開く
+                      </a>
+                   )}
+                </div>
+                
+                <div className="relative rounded-xl overflow-hidden border border-slate-100 bg-slate-50 h-64 group cursor-zoom-in">
+                   {lastScreenshotUrl ? (
+                      <>
+                        <img 
+                          src={lastScreenshotUrl} 
+                          alt="Search Evidence" 
+                          className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
+                           <p className="text-white text-xs font-bold">クリックして拡大</p>
+                        </div>
+                      </>
+                   ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
+                         <ImageOff size={48} strokeWidth={1} />
+                         <p className="text-sm font-bold">画像がまだありません。検索を開始してください。</p>
+                      </div>
+                   )}
+                </div>
               </div>
               <div className="flex justify-between items-end border-b border-slate-200 pb-6">
                 <div>
@@ -575,9 +641,17 @@ export default function DashboardPage() {
                     </button>
                   </div>
                   {((config.current || config).mode === 'file') && (
-                    <div className="mt-4 flex items-center gap-2 text-emerald-600 bg-emerald-50 px-6 py-3 rounded-full font-black text-sm">
-                      <CheckCircle size={18} />
-                      現在はファイル読み込みモードで動作します
+                    <div className="mt-4 flex flex-col items-center gap-4">
+                      <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-6 py-3 rounded-full font-black text-sm">
+                        <CheckCircle size={18} />
+                        現在はファイル読み込みモードで動作します
+                      </div>
+                      <button 
+                        onClick={handleClearUpload}
+                        className="text-rose-500 hover:text-rose-700 text-xs font-black flex items-center gap-1 transition-colors"
+                      >
+                        <Trash2 size={14} /> アップロードしたリストをクリア
+                      </button>
                     </div>
                   )}
                 </div>
@@ -607,9 +681,7 @@ export default function DashboardPage() {
                                onClick={() => deleteConfig(h.name)}
                                className="px-2 py-2.5 text-slate-300 hover:text-rose-500 transition-colors border-l border-slate-100"
                              >
-                               <Star size={12} fill="currentColor" className="opacity-0 group-hover:opacity-100" /> {/* ダミー用 */}
-                               {/* 実際はLucideの Trash2 などを使いたいが、replace_file_content の影響範囲を考慮して Star を流用（後で修正） */}
-                               <RefreshCw size={12} />
+                               <Trash2 size={12} />
                              </button>
                            </div>
                         ))}
