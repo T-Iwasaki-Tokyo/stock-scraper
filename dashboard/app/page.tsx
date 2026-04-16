@@ -561,11 +561,12 @@ export default function DashboardPage() {
                       <div className="relative group">
                         <input 
                           type="number" 
-                          value={(config.current || config).search.maxAmount} 
+                          value={(config.current || config)?.search?.maxAmount || ''} 
                           placeholder="上限なし" 
                           onChange={(e) => {
                             const current = config.current || config;
-                            setConfig({...config, current: {...current, search: {...current.search, maxAmount: e.target.value}}});
+                            const search = current.search || {};
+                            setConfig({...config, current: {...current, search: {...search, maxAmount: e.target.value}}});
                           }} 
                           className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all" 
                         />
@@ -575,10 +576,11 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（総合）</label>
                       <select 
-                        value={(config.current || config).search.minYieldTotal}
+                        value={(config.current || config)?.search?.minYieldTotal || ''}
                         onChange={(e) => {
                           const current = config.current || config;
-                          setConfig({...config, current: {...current, search: {...current.search, minYieldTotal: e.target.value}}});
+                          const search = current.search || {};
+                          setConfig({...config, current: {...current, search: {...search, minYieldTotal: e.target.value}}});
                         }}
                         className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
@@ -589,10 +591,11 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（優待）</label>
                       <select 
-                        value={(config.current || config).search.minYieldYutai}
+                        value={(config.current || config)?.search?.minYieldYutai || ''}
                         onChange={(e) => {
                           const current = config.current || config;
-                          setConfig({...config, current: {...current, search: {...current.search, minYieldYutai: e.target.value}}});
+                          const search = current.search || {};
+                          setConfig({...config, current: {...current, search: {...search, minYieldYutai: e.target.value}}});
                         }}
                         className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
@@ -603,10 +606,11 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（配当）</label>
                       <select 
-                        value={(config.current || config).search.minYieldDividend}
+                        value={(config.current || config)?.search?.minYieldDividend || ''}
                         onChange={(e) => {
                           const current = config.current || config;
-                          setConfig({...config, current: {...current, search: {...current.search, minYieldDividend: e.target.value}}});
+                          const search = current.search || {};
+                          setConfig({...config, current: {...current, search: {...search, minYieldDividend: e.target.value}}});
                         }}
                         className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
@@ -619,8 +623,9 @@ export default function DashboardPage() {
                       <div className="flex gap-1.5">
                         {[1, 2, 3, 4, 5].map(s => {
                           const current = config.current || config;
+                          const search = current.search || {};
                           return (
-                            <button key={s} onClick={() => setConfig({...config, current: {...current, search: {...current.search, minRecommendation: s.toString()}}})} className={`option-btn flex-1 py-4 text-sm ${current.search.minRecommendation === s.toString() ? 'active' : ''}`}>★{s}以上</button>
+                            <button key={s} onClick={() => setConfig({...config, current: {...current, search: {...search, minRecommendation: s.toString()}}})} className={`option-btn flex-1 py-4 text-sm ${search.minRecommendation === s.toString() ? 'active' : ''}`}>★{s}以上</button>
                           );
                         })}
                       </div>
@@ -630,8 +635,9 @@ export default function DashboardPage() {
                       <div className="flex gap-1.5">
                         {[{v:'',l:'指定なし'}, {v:'exists',l:'特典あり'}, {v:'only',l:'特典のみ'}].map(o => {
                           const current = config.current || config;
+                          const search = current.search || {};
                           return (
-                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...current.search, longTerm: o.v}}})} className={`option-btn flex-1 py-4 text-sm ${current.search.longTerm === o.v ? 'active' : ''}`}>{o.l}</button>
+                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, longTerm: o.v}}})} className={`option-btn flex-1 py-4 text-sm ${search.longTerm === o.v ? 'active' : ''}`}>{o.l}</button>
                           );
                         })}
                       </div>
@@ -650,11 +656,12 @@ export default function DashboardPage() {
                     {Array.from({ length: 12 }).map((_, i) => {
                       const month = (i + 1).toString();
                       const current = config.current || config;
-                      const selected = current.search.months.includes(month);
+                      const search = current.search || { months: [] };
+                      const selected = (search.months || []).includes(month);
                       return (
                         <button key={month} onClick={() => {
-                           const next = selected ? current.search.months.filter((m: any) => m !== month) : [...current.search.months, month];
-                           setConfig({...config, current: {...current, search: {...current.search, months: next}}});
+                           const next = selected ? (search.months || []).filter((m: any) => m !== month) : [...(search.months || []), month];
+                           setConfig({...config, current: {...current, search: {...search, months: next}}});
                         }} className={`option-btn h-16 font-black text-base ${selected ? 'active' : ''}`}>
                           {month}月
                         </button>
@@ -674,7 +681,8 @@ export default function DashboardPage() {
                       {categoryGroups.map(group => {
                         const isOpen = openGroups.includes(group.name);
                         const current = config.current || config;
-                        const selCount = group.items.filter(it => current.search.categories.includes(it.id)).length;
+                        const search = current.search || { categories: [] };
+                        const selCount = group.items.filter(it => (search.categories || []).includes(it.id)).length;
                         return (
                          <div key={group.name} className={`border rounded-2xl transition-all ${isOpen ? 'border-indigo-100 bg-slate-50/30' : 'border-slate-100 hover:border-indigo-200'}`}>
                            <button onClick={() => setOpenGroups(isOpen ? openGroups.filter(g => g !== group.name) : [...openGroups, group.name])} className="w-full flex justify-between items-center p-6 text-left group">
@@ -689,14 +697,13 @@ export default function DashboardPage() {
                            {isOpen && (
                              <div className="p-8 pt-0 grid grid-cols-2 md:grid-cols-4 gap-2.5">
                                {group.items.map(item => {
-                                 const current = config.current || config;
-                                 const selected = current.search.categories.includes(item.id);
+                                 const selected = (search.categories || []).includes(item.id);
                                  return (
                                    <button 
                                      key={item.id} 
                                      onClick={() => {
-                                       const next = selected ? current.search.categories.filter((c:any) => c !== item.id) : [...current.search.categories, item.id];
-                                       setConfig({...config, current: {...current, search: {...current.search, categories: next}}});
+                                       const next = selected ? (search.categories || []).filter((c:any) => c !== item.id) : [...(search.categories || []), item.id];
+                                       setConfig({...config, current: {...current, search: {...search, categories: next}}});
                                      }}
                                      className={`option-btn text-xs py-3.5 font-bold ${selected ? 'active' : ''}`}
                                    >
@@ -720,8 +727,9 @@ export default function DashboardPage() {
                       <div className="flex gap-2">
                          {[{v: '', l:'全て'}, {v:'standard', l:'制度信用'}, {v:'loan', l:'一般信用'}].map(o => {
                            const current = config.current || config;
+                           const search = current.search || {};
                            return (
-                             <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...current.search, creditTrading: o.v}}})} className={`option-btn flex-1 py-4 font-bold text-sm ${current.search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
+                             <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, creditTrading: o.v}}})} className={`option-btn flex-1 py-4 font-bold text-sm ${search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
                            );
                          })}
                       </div>
@@ -735,10 +743,11 @@ export default function DashboardPage() {
                            <label className="text-[10px] font-black text-slate-300 uppercase">最大銘柄数</label>
                            <input 
                              type="number" 
-                             value={(config.current || config).scraping.maxStocks} 
+                             value={(config.current || config)?.scraping?.maxStocks || 100} 
                              onChange={(e) => {
                                const current = config.current || config;
-                               setConfig({...config, current: {...current, scraping: {...current.scraping, maxStocks: parseInt(e.target.value)}}});
+                               const scraping = current.scraping || {};
+                               setConfig({...config, current: {...current, scraping: {...scraping, maxStocks: parseInt(e.target.value)}}});
                              }} 
                              className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" 
                            />
@@ -748,10 +757,11 @@ export default function DashboardPage() {
                            <input 
                              type="number" 
                              step="0.1" 
-                             value={(config.current || config).scraping.intervalMinutes} 
+                             value={(config.current || config)?.scraping?.intervalMinutes || 1} 
                              onChange={(e) => {
                                const current = config.current || config;
-                               setConfig({...config, current: {...current, scraping: {...current.scraping, intervalMinutes: parseFloat(e.target.value)}}});
+                               const scraping = current.scraping || {};
+                               setConfig({...config, current: {...current, scraping: {...scraping, intervalMinutes: parseFloat(e.target.value)}}});
                              }} 
                              className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" 
                            />

@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+const DEFAULT_CONFIG = {
+    name: 'デフォルト設定',
+    mode: 'condition',
+    search: {
+        minAmount: '',
+        maxAmount: '',
+        minYieldYutai: '',
+        minYieldDividend: '',
+        minYieldTotal: '3',
+        months: ['3', '9'],
+        minRecommendation: '3',
+        categories: [],
+        longTerm: '',
+        creditTrading: ''
+    },
+    scraping: {
+        intervalMinutes: 1,
+        maxStocks: 100
+    }
+};
+
 export async function GET() {
     try {
         const { data: configs, error } = await supabase
@@ -10,10 +31,16 @@ export async function GET() {
 
         if (error) throw error;
 
-        const current = configs.find(c => c.is_current) || configs[0] || null;
+        let current = configs.find(c => c.is_current) || configs[0] || null;
+        
+        // 初回起動時（DBが空の場合）のデフォルト設定
+        if (!current) {
+            current = DEFAULT_CONFIG;
+        }
+
         return NextResponse.json({
             current: current,
-            history: configs
+            history: configs || []
         });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
