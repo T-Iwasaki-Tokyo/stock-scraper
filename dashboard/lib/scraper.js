@@ -88,13 +88,17 @@ export async function fetchStockList(config) {
                     const p = pTags.find(el => el.innerText.includes(labelText));
                     if (!p) return 'N/A';
                     const span = p.querySelector('.tousi_price');
-                    return span ? span.innerText.trim() : 'N/A';
+                    if (!span) return 'N/A';
+                    // 数値部分のみを抽出して正規化（%が含まれていても外す）
+                    const val = span.innerText.trim();
+                    const match = val.match(/[0-9.]+/);
+                    return match ? match[0] : 'N/A';
                 };
 
                 return {
                     name: nameLink ? nameLink.innerText.trim() : '不明',
                     code: codeSpan ? codeSpan.innerText.trim() : null,
-                    totalYield: tyEl ? tyEl.innerText.trim() : 'N/A',
+                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+/) || ['N/A'])[0] : 'N/A',
                     dividendYield: pickYield('【予想配当利回り】'),
                     yutaiYield: pickYield('【優待利回り】'),
                     status: 'waiting'

@@ -6,9 +6,12 @@ const nextConfig: NextConfig = {
   },
 
 
+  // 外部パッケージとして扱うことでバンドルサイズとメモリを節約
+  serverExternalPackages: ['playwright', 'playwright-core'],
+
   // メモリ使用量を削減するための設定
   experimental: {
-    // 適切なキーがあればここに追加
+    webpackMemoryOptimizations: true,
   }
 };
 

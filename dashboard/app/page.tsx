@@ -235,7 +235,10 @@ export default function DashboardPage() {
               <div className="flex justify-between items-end border-b border-slate-200 pb-6">
                 <div>
                   <h2 className="text-3xl font-black tracking-tight text-slate-900">ダッシュボード</h2>
-                  <p className="text-slate-500 text-sm mt-1">Supabaseクラウド上の最新情報を表示中</p>
+                  <div className="flex items-center gap-2 text-slate-500 text-sm mt-1">
+                    <Clock size={14} className="text-slate-400" />
+                    <span>データ最終取得: {results.length > 0 ? (results.reduce((latest, s) => (!latest || (s.timestamp && s.timestamp > latest)) ? s.timestamp : latest, '') || 'データなし') : '読み込み中...'}</span>
+                  </div>
                 </div>
                 <div className="text-right flex items-center gap-6">
                   <div>
@@ -299,8 +302,14 @@ export default function DashboardPage() {
                             {stock.totalYield}
                             {stock.totalYield !== 'N/A' && <span className="text-[10px] ml-0.5 uppercase">%</span>}
                           </td>
-                          <td className="text-right font-bold text-slate-500 pr-4">{stock.dividendYield}</td>
-                          <td className="text-right font-bold text-slate-500 pr-4">{stock.yutaiYield}</td>
+                          <td className="text-right font-bold text-slate-600 pr-4">
+                            {stock.dividendYield}
+                            {stock.dividendYield !== 'N/A' && stock.dividendYield !== '待機中...' && <span className="text-[10px] ml-0.5 text-slate-400">%</span>}
+                          </td>
+                          <td className="text-right font-bold text-indigo-600/80 pr-4">
+                            {stock.yutaiYield}
+                            {stock.yutaiYield !== 'N/A' && stock.yutaiYield !== '待機中...' && <span className="text-[10px] ml-0.5 text-indigo-300">%</span>}
+                          </td>
                           <td className="text-right font-bold text-indigo-500 pr-4">{isComplete ? stock.pbr : '-'}</td>
                           <td className="text-right pr-6">
                             <div className="flex justify-end gap-1">

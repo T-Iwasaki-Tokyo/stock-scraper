@@ -95,3 +95,36 @@ body {
 /* スクロールバー */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+/* アニメーション */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.main-panel {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* プレミアムなホバーエフェクト */
+.option-btn:active {
+  transform: scale(0.95);
+}
+
+.data-table tr {
+  transition: all 0.2s ease;
+}
+
+.data-table tr:hover {
+  background: var(--off-white);
+  transform: scale(1.002);
+}
+
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
