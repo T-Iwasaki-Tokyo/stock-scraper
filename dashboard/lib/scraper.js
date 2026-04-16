@@ -67,28 +67,26 @@ export async function fetchStockList(config) {
 
     // --- 検索条件入力 (堅牢化版) ---
     
-    // 1. 権利確定月 (fm[])
-    const allMonths = Array.from({length: 12}, (_, i) => (i + 1).toString());
-    for (const m of allMonths) {
-        const isChecked = search.months?.includes(m);
-        const selector = `input[name="fm[]"][value="${m}"]`;
-        if (await page.locator(selector).isVisible()) {
-            if (isChecked) await page.check(selector);
-            else await page.uncheck(selector);
-        }
-    }
+    // 1. 権利確定月 (fm[]) & 2. カテゴリ (cat_group) を DOM 操作でセット (非表示要素でも確実に実行)
+    await page.evaluate((s) => {
+        // 確定月
+        document.querySelectorAll('input[name="fm[]"]').forEach(el => {
+            const isChecked = s.months?.includes(el.value);
+            if (el.checked !== isChecked) {
+                el.checked = isChecked;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
 
-    // 2. カテゴリ (cat_group)
-    // ページ上のすべてのカテゴリ入力を取得して、設定に含まれるものだけチェックを入れる
-    const catInputs = await page.locator('input[name="cat_group"]').all();
-    for (const input of catInputs) {
-        const val = await input.getAttribute('value');
-        if (search.categories?.includes(val)) {
-            await input.check();
-        } else {
-            await input.uncheck();
-        }
-    }
+        // カテゴリ
+        document.querySelectorAll('input[name="cat_group"]').forEach(el => {
+            const isChecked = s.categories?.includes(el.value);
+            if (el.checked !== isChecked) {
+                el.checked = isChecked;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    }, search);
 
     // おすすめ度 (st)
     if (search.minRecommendation) {
