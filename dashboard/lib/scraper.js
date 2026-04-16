@@ -138,10 +138,20 @@ export async function fetchStockList(config) {
         await page.check('input[name="dn"][value=""]'); // 全銘柄
     }
 
-    // 「この条件で検索する」ボタンをクリック
+    // 「この条件で検索する」ボタンをクリック (UI変更に対応)
     await Promise.all([
         page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
-        page.click('input[name="btn"]')
+        page.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a'));
+            const btn = links.find(a => a.innerText.includes('この条件で検索する') && a.offsetWidth > 0 && a.offsetHeight > 0);
+            if (btn) {
+                btn.click();
+            } else {
+                // フォールバック: input[name="btn"] が存在すればそれを使う
+                const fallbackBtn = Array.from(document.querySelectorAll('input[name="btn"]')).find(el => el.offsetWidth > 0 && el.offsetHeight > 0);
+                if (fallbackBtn) fallbackBtn.click();
+            }
+        })
     ]);
 
     // スクリーンショット撮影とアップロード
