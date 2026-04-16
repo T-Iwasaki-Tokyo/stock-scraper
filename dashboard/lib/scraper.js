@@ -33,6 +33,12 @@ async function upsertStock(stock) {
     if (stock.status) data.status = stock.status;
     if (stock.yahooUrl) data.yahoo_url = stock.yahooUrl;
     if (stock.chartUrl) data.chart_url = stock.chartUrl;
+    
+    // 移動平均線 (Kabutan)
+    if (stock.ma5_val !== undefined) data.ma5_val = stock.ma5_val;
+    if (stock.ma5_diff !== undefined) data.ma5_diff = stock.ma5_diff;
+    if (stock.ma25_val !== undefined) data.ma25_val = stock.ma25_val;
+    if (stock.ma25_diff !== undefined) data.ma25_diff = stock.ma25_diff;
 
     const { error } = await supabase
         .from('stocks')
@@ -50,7 +56,7 @@ export async function fetchStockList(config) {
     });
     const page = await context.newPage();
 
-    const { search } = config;
+    const { search } = config.current || config;
     const params = new URLSearchParams();
     if (search.months?.length) params.set('fm', search.months.join(','));
     if (search.categories?.length) params.set('cat', search.categories.join(','));
@@ -143,8 +149,9 @@ export async function fetchStockDetail(code) {
         await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('body', { timeout: 10000 });
         await new Promise(r => setTimeout(r, 2000));
-
-        const details = await page.evaluate(() => {
+        
+        // --- Yahoo Finance データの抽出 ---
+        const yahooDetails = await page.evaluate(() => {
             const pickNumber = (text) => {
                 if (!text) return 'N/A';
                 const m = text.match(/[0-9,.]+/);
@@ -164,9 +171,47 @@ export async function fetchStockDetail(code) {
             };
         });
 
+        // --- 株探 (Kabutan) データの抽出 ---
+        let kabutanDetails = { ma5_val: 'N/A', ma5_diff: 'N/A', ma25_val: 'N/A', ma25_diff: 'N/A' };
+        try {
+            await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded' });
+            await page.waitForSelector('.stock_table', { timeout: 10000 });
+            
+            kabutanDetails = await page.evaluate(() => {
+                const rows = Array.from(document.querySelectorAll('tr'));
+                const extractMA = (label) => {
+                    const row = rows.find(r => r.innerText.includes(label));
+                    if (!row) return { val: 'N/A', diff: 'N/A' };
+                    const cells = Array.from(row.querySelectorAll('td'));
+                    if (cells.length < 2) return { val: 'N/A', diff: 'N/A' };
+                    
+                    const valText = cells[0].innerText.replace(/,/g, '').match(/[0-9.]+/);
+                    const diffText = cells[1].innerText.match(/[+-]?[0-9.]+/);
+                    
+                    return {
+                        val: valText ? valText[0] : 'N/A',
+                        diff: diffText ? diffText[0] : 'N/A'
+                    };
+                };
+
+                const ma5 = extractMA('5日線');
+                const ma25 = extractMA('25日線');
+                
+                return {
+                    ma5_val: ma5.val,
+                    ma5_diff: ma5.diff,
+                    ma25_val: ma25.val,
+                    ma25_diff: ma25.diff
+                };
+            });
+        } catch (ke) {
+            console.warn(`[Warn] Kabutan fetch failed for ${code}:`, ke.message);
+        }
+
         const stockData = {
             code,
-            ...details,
+            ...yahooDetails,
+            ...kabutanDetails,
             yahooUrl: `https://finance.yahoo.co.jp/quote/${code}.T`,
             chartUrl: `https://finance.yahoo.co.jp/quote/${code}.T/chart`,
             status: 'complete'
@@ -186,7 +231,8 @@ export async function fetchStockDetail(code) {
 // GitHub Actions 等でコマンドラインからも実行可能なようにエントリポイントを用意
 if (process.argv[1]?.endsWith('scraper.js')) {
     (async () => {
-        const config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
+        const fullConfig = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
+        const config = fullConfig.current || fullConfig;
         const list = await fetchStockList(config);
         for (const s of list) {
             await fetchStockDetail(s.code);

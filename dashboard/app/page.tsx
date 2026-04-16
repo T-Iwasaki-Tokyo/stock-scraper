@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['金券・ポイント']);
+  const [configName, setConfigName] = useState('');
 
   const fetchResults = useCallback(async () => {
     const res = await fetch('/api/results');
@@ -26,7 +27,11 @@ export default function DashboardPage() {
   const fetchConfig = useCallback(async () => {
     const res = await fetch('/api/config');
     const data = await res.json();
+    // 構造が変わったため、currentをプライマリな設定として扱う
     setConfig(data);
+    if (data.current?.name) {
+      setConfigName(data.current.name);
+    }
   }, []);
 
   useEffect(() => {
@@ -35,18 +40,37 @@ export default function DashboardPage() {
   }, [fetchConfig, fetchResults]);
 
   const handleSaveConfig = async () => {
+    if (!configName.trim()) {
+      alert('設定名を入力してください');
+      return;
+    }
     setIsSaving(true);
-    await fetch('/api/config', {
+    const current = config.current || config;
+    const res = await fetch('/api/config', {
       method: 'POST',
-      body: JSON.stringify(config),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        name: configName, 
+        config: { search: current.search, scraping: current.scraping } 
+      }),
     });
+    const data = await res.json();
+    if (data.success) {
+      setConfig(data.config);
+    }
     setIsSaving(false);
+  };
+
+  const loadHistoryConfig = (hist: any) => {
+    setConfig({ ...config, current: hist });
+    setConfigName(hist.name);
   };
 
   const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
   const handleRunScraper = async () => {
     if (!config) return;
+    const currentConfig = config.current || config;
     setIsRunning(true);
     setResults([]);
     
@@ -76,7 +100,7 @@ export default function DashboardPage() {
       }
 
       if (i < stocks.length - 1) {
-        const waitMs = (config.scraping.intervalMinutes || 1) * 60 * 1000;
+        const waitMs = (currentConfig.scraping.intervalMinutes || 1) * 60 * 1000;
         const waitSeconds = Math.floor(waitMs / 1000);
         for(let s = waitSeconds; s > 0; s--) {
           setStatus((prev: any) => ({ ...prev, message: `次の銘柄まで待機中...あと ${s} 秒` }));
@@ -91,8 +115,12 @@ export default function DashboardPage() {
 
   const downloadCSV = () => {
     if (results.length === 0) return;
-    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '優待利回り', 'PBR', '更新日時', 'Yahoo引用元'];
-    const rows = results.map(s => [s.code, s.name, s.price, s.totalYield, s.dividendYield, s.yutaiYield, s.pbr, s.timestamp || '-', s.yahooUrl]);
+    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '優待利回り', 'PBR', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
+    const rows = results.map(s => [
+      s.code, s.name, s.price, s.totalYield, s.dividendYield, s.yutaiYield, s.pbr, 
+      s.ma5_val || '-', s.ma5_diff || '-', s.ma25_val || '-', s.ma25_diff || '-',
+      s.timestamp || '-', s.yahooUrl
+    ]);
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); 
     const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -267,6 +295,8 @@ export default function DashboardPage() {
                       <th className="w-32 text-right">配当利回り</th>
                       <th className="w-32 text-right">優待利回り</th>
                       <th className="w-24 text-right">PBR</th>
+                      <th className="w-28 text-right underline decoration-indigo-200">5日線 (乖離)</th>
+                      <th className="w-28 text-right pr-6 underline decoration-indigo-200">25日線 (乖離)</th>
                       <th className="w-24 text-right pr-6 whitespace-nowrap">リンク</th>
                     </tr>
                   </thead>
@@ -311,6 +341,22 @@ export default function DashboardPage() {
                             {stock.yutaiYield !== 'N/A' && stock.yutaiYield !== '待機中...' && <span className="text-[10px] ml-0.5 text-indigo-300">%</span>}
                           </td>
                           <td className="text-right font-bold text-indigo-500 pr-4">{isComplete ? stock.pbr : '-'}</td>
+                          <td className="text-right pr-4">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[11px] font-bold text-slate-700">{stock.ma5_val || '-'}</span>
+                              <span className={`text-[10px] font-black ${Number(stock.ma5_diff) >= 0 ? 'text-rose-500' : 'text-blue-500'}`}>
+                                {stock.ma5_diff ? `${Number(stock.ma5_diff) > 0 ? '+' : ''}${stock.ma5_diff}%` : '-'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="text-right pr-4">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[11px] font-bold text-slate-700">{stock.ma25_val || '-'}</span>
+                              <span className={`text-[10px] font-black ${Number(stock.ma25_diff) >= 0 ? 'text-rose-500' : 'text-blue-500'}`}>
+                                {stock.ma25_diff ? `${Number(stock.ma25_diff) > 0 ? '+' : ''}${stock.ma25_diff}%` : '-'}
+                              </span>
+                            </div>
+                          </td>
                           <td className="text-right pr-6">
                             <div className="flex justify-end gap-1">
                               <a href={stock.yahooUrl} target="_blank" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><ExternalLink size={14} /></a>
@@ -322,7 +368,7 @@ export default function DashboardPage() {
                     })}
                     {results.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="py-24 text-center text-slate-300 font-medium italic">
+                        <td colSpan={11} className="py-24 text-center text-slate-300 font-medium italic">
                           <div className="flex flex-col items-center gap-2">
                             <Search size={32} className="opacity-20 mb-2" />
                             {isRunning ? 'データを順次取得しています...' : '現在データはありません。左下の「検索を開始」をクリックしてください。'}
@@ -341,15 +387,52 @@ export default function DashboardPage() {
                   <h2 className="text-4xl font-black tracking-tighter text-slate-900">検索条件の設定</h2>
                   <p className="text-slate-500 text-sm mt-1">ご希望の条件を入力して保存してください。保存した条件が GitHub Actions にも反映されます。</p>
                 </div>
-                <button 
-                  onClick={handleSaveConfig} 
-                  disabled={isSaving}
-                  className="bg-indigo-600 text-white px-10 py-4 rounded-xl font-bold shadow-2xl hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
-                >
-                  {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} 
-                  {isSaving ? '保存中...' : '設定をクラウドに保存'}
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">設定名</label>
+                    <input 
+                      type="text" 
+                      value={configName} 
+                      onChange={(e) => setConfigName(e.target.value)}
+                      placeholder="例: 高配当モデル" 
+                      className="bg-white border border-slate-200 px-4 py-3.5 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-100 min-w-[240px]"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleSaveConfig} 
+                    disabled={isSaving}
+                    className="bg-indigo-600 text-white px-8 py-4 rounded-xl font-bold shadow-2xl hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50 mt-4"
+                  >
+                    {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} 
+                    {isSaving ? '保存中...' : '設定を保存'}
+                  </button>
+                </div>
               </div>
+
+              {config.history && config.history.length > 0 && (
+                <div className="main-panel p-6 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                      <Clock size={20} />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-900 leading-tight">保存済みの履歴 ({config.history.length}/12)</h4>
+                      <p className="text-xs text-slate-500 font-medium">過去の設定を呼び出せます</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-1 max-w-[70%]">
+                    {config.history.map((h: any, idx: number) => (
+                      <button 
+                        key={idx} 
+                        onClick={() => loadHistoryConfig(h)}
+                        className={`shrink-0 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all ${config.current?.timestamp === h.timestamp ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'}`}
+                      >
+                        {h.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 gap-12 pb-24">
                 <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-10">
@@ -364,15 +447,27 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最大投資金額</label>
                       <div className="relative group">
-                        <input type="number" value={config.search.maxAmount} placeholder="上限なし" onChange={(e) => setConfig({...config, search: {...config.search, maxAmount: e.target.value}})} className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all" />
+                        <input 
+                          type="number" 
+                          value={(config.current || config).search.maxAmount} 
+                          placeholder="上限なし" 
+                          onChange={(e) => {
+                            const current = config.current || config;
+                            setConfig({...config, current: {...current, search: {...current.search, maxAmount: e.target.value}}});
+                          }} 
+                          className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all" 
+                        />
                         <span className="absolute right-6 top-6 text-slate-300 font-bold">円</span>
                       </div>
                     </div>
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（総合）</label>
                       <select 
-                        value={config.search.minYieldTotal}
-                        onChange={(e) => setConfig({...config, search: {...config.search, minYieldTotal: e.target.value}})}
+                        value={(config.current || config).search.minYieldTotal}
+                        onChange={(e) => {
+                          const current = config.current || config;
+                          setConfig({...config, current: {...current, search: {...current.search, minYieldTotal: e.target.value}}});
+                        }}
                         className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
                          <option value="">指定なし</option>
@@ -382,8 +477,11 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（優待）</label>
                       <select 
-                        value={config.search.minYieldYutai}
-                        onChange={(e) => setConfig({...config, search: {...config.search, minYieldYutai: e.target.value}})}
+                        value={(config.current || config).search.minYieldYutai}
+                        onChange={(e) => {
+                          const current = config.current || config;
+                          setConfig({...config, current: {...current, search: {...current.search, minYieldYutai: e.target.value}}});
+                        }}
                         className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
                          <option value="">指定なし</option>
@@ -393,8 +491,11 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（配当）</label>
                       <select 
-                        value={config.search.minYieldDividend}
-                        onChange={(e) => setConfig({...config, search: {...config.search, minYieldDividend: e.target.value}})}
+                        value={(config.current || config).search.minYieldDividend}
+                        onChange={(e) => {
+                          const current = config.current || config;
+                          setConfig({...config, current: {...current, search: {...current.search, minYieldDividend: e.target.value}}});
+                        }}
                         className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
                       >
                          <option value="">指定なし</option>
@@ -404,17 +505,23 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">おすすめ度（★）</label>
                       <div className="flex gap-1.5">
-                        {[1, 2, 3, 4, 5].map(s => (
-                          <button key={s} onClick={() => setConfig({...config, search: {...config.search, minRecommendation: s.toString()}})} className={`option-btn flex-1 py-4 text-sm ${config.search.minRecommendation === s.toString() ? 'active' : ''}`}>★{s}以上</button>
-                        ))}
+                        {[1, 2, 3, 4, 5].map(s => {
+                          const current = config.current || config;
+                          return (
+                            <button key={s} onClick={() => setConfig({...config, current: {...current, search: {...current.search, minRecommendation: s.toString()}}})} className={`option-btn flex-1 py-4 text-sm ${current.search.minRecommendation === s.toString() ? 'active' : ''}`}>★{s}以上</button>
+                          );
+                        })}
                       </div>
                     </div>
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">長期保有特典</label>
                       <div className="flex gap-1.5">
-                        {[{v:'',l:'指定なし'}, {v:'exists',l:'特典あり'}, {v:'only',l:'特典のみ'}].map(o => (
-                          <button key={o.v} onClick={() => setConfig({...config, search: {...config.search, longTerm: o.v}})} className={`option-btn flex-1 py-4 text-sm ${config.search.longTerm === o.v ? 'active' : ''}`}>{o.l}</button>
-                        ))}
+                        {[{v:'',l:'指定なし'}, {v:'exists',l:'特典あり'}, {v:'only',l:'特典のみ'}].map(o => {
+                          const current = config.current || config;
+                          return (
+                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...current.search, longTerm: o.v}}})} className={`option-btn flex-1 py-4 text-sm ${current.search.longTerm === o.v ? 'active' : ''}`}>{o.l}</button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -430,11 +537,12 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                     {Array.from({ length: 12 }).map((_, i) => {
                       const month = (i + 1).toString();
-                      const selected = config.search.months.includes(month);
+                      const current = config.current || config;
+                      const selected = current.search.months.includes(month);
                       return (
                         <button key={month} onClick={() => {
-                           const next = selected ? config.search.months.filter((m: any) => m !== month) : [...config.search.months, month];
-                           setConfig({...config, search: {...config.search, months: next}});
+                           const next = selected ? current.search.months.filter((m: any) => m !== month) : [...current.search.months, month];
+                           setConfig({...config, current: {...current, search: {...current.search, months: next}}});
                         }} className={`option-btn h-16 font-black text-base ${selected ? 'active' : ''}`}>
                           {month}月
                         </button>
@@ -451,10 +559,11 @@ export default function DashboardPage() {
                     <span>3. カテゴリで絞り込む</span>
                   </div>
                   <div className="space-y-3">
-                     {categoryGroups.map(group => {
-                       const isOpen = openGroups.includes(group.name);
-                       const selCount = group.items.filter(it => config.search.categories.includes(it.id)).length;
-                       return (
+                      {categoryGroups.map(group => {
+                        const isOpen = openGroups.includes(group.name);
+                        const current = config.current || config;
+                        const selCount = group.items.filter(it => current.search.categories.includes(it.id)).length;
+                        return (
                          <div key={group.name} className={`border rounded-2xl transition-all ${isOpen ? 'border-indigo-100 bg-slate-50/30' : 'border-slate-100 hover:border-indigo-200'}`}>
                            <button onClick={() => setOpenGroups(isOpen ? openGroups.filter(g => g !== group.name) : [...openGroups, group.name])} className="w-full flex justify-between items-center p-6 text-left group">
                              <div className="flex items-center gap-4">
@@ -468,13 +577,14 @@ export default function DashboardPage() {
                            {isOpen && (
                              <div className="p-8 pt-0 grid grid-cols-2 md:grid-cols-4 gap-2.5">
                                {group.items.map(item => {
-                                 const selected = config.search.categories.includes(item.id);
+                                 const current = config.current || config;
+                                 const selected = current.search.categories.includes(item.id);
                                  return (
                                    <button 
                                      key={item.id} 
                                      onClick={() => {
-                                       const next = selected ? config.search.categories.filter((c:any) => c !== item.id) : [...config.search.categories, item.id];
-                                       setConfig({...config, search: {...config.search, categories: next}});
+                                       const next = selected ? current.search.categories.filter((c:any) => c !== item.id) : [...current.search.categories, item.id];
+                                       setConfig({...config, current: {...current, search: {...current.search, categories: next}}});
                                      }}
                                      className={`option-btn text-xs py-3.5 font-bold ${selected ? 'active' : ''}`}
                                    >
@@ -486,7 +596,7 @@ export default function DashboardPage() {
                            )}
                          </div>
                        )
-                     })}
+                      })}
                   </div>
                 </div>
 
@@ -496,9 +606,12 @@ export default function DashboardPage() {
                         <ShieldCheck size={16} /> <span>銘柄の信用区分</span>
                       </div>
                       <div className="flex gap-2">
-                         {[{v: '', l:'全て'}, {v:'standard', l:'制度信用'}, {v:'loan', l:'一般信用'}].map(o => (
-                           <button key={o.v} onClick={() => setConfig({...config, search: {...config.search, creditTrading: o.v}})} className={`option-btn flex-1 py-4 font-bold text-sm ${config.search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
-                         ))}
+                         {[{v: '', l:'全て'}, {v:'standard', l:'制度信用'}, {v:'loan', l:'一般信用'}].map(o => {
+                           const current = config.current || config;
+                           return (
+                             <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...current.search, creditTrading: o.v}}})} className={`option-btn flex-1 py-4 font-bold text-sm ${current.search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
+                           );
+                         })}
                       </div>
                    </div>
                    <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-5">
@@ -508,11 +621,28 @@ export default function DashboardPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                            <label className="text-[10px] font-black text-slate-300 uppercase">最大銘柄数</label>
-                           <input type="number" value={config.scraping.maxStocks} onChange={(e) => setConfig({...config, scraping: {...config.scraping, maxStocks: parseInt(e.target.value)}})} className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" />
+                           <input 
+                             type="number" 
+                             value={(config.current || config).scraping.maxStocks} 
+                             onChange={(e) => {
+                               const current = config.current || config;
+                               setConfig({...config, current: {...current, scraping: {...current.scraping, maxStocks: parseInt(e.target.value)}}});
+                             }} 
+                             className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" 
+                           />
                         </div>
                         <div className="space-y-2">
                            <label className="text-[10px] font-black text-slate-300 uppercase">間隔 (分)</label>
-                           <input type="number" step="0.1" value={config.scraping.intervalMinutes} onChange={(e) => setConfig({...config, scraping: {...config.scraping, intervalMinutes: parseFloat(e.target.value)}})} className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" />
+                           <input 
+                             type="number" 
+                             step="0.1" 
+                             value={(config.current || config).scraping.intervalMinutes} 
+                             onChange={(e) => {
+                               const current = config.current || config;
+                               setConfig({...config, current: {...current, scraping: {...current.scraping, intervalMinutes: parseFloat(e.target.value)}}});
+                             }} 
+                             className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-black focus:ring-4 focus:ring-indigo-100 outline-none" 
+                           />
                         </div>
                       </div>
                    </div>

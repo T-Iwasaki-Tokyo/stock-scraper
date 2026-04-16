@@ -1,44 +1,48 @@
 {
-  "search": {
-    "minAmount": "",
-    "maxAmount": "",
-    "minYieldYutai": "",
-    "maxYieldYutai": "",
-    "minYieldDividend": "",
-    "maxYieldDividend": "",
-    "minYieldTotal": "3",
-    "maxYieldTotal": "",
-    "months": [
-      "8",
-      "9"
-    ],
-    "minRecommendation": "2",
-    "categories": [
-      "39",
-      "41",
-      "42",
-      "43",
-      "44",
-      "45",
-      "46",
-      "47",
-      "48",
-      "49",
-      "50",
-      "1",
-      "11",
-      "17",
-      "25",
-      "40",
-      "15",
-      "51",
-      "52"
-    ],
-    "longTerm": "",
-    "creditTrading": "loan"
+  "current": {
+    "name": "デフォルト設定",
+    "search": {
+      "minAmount": "",
+      "maxAmount": "",
+      "minYieldYutai": "",
+      "maxYieldYutai": "",
+      "minYieldDividend": "",
+      "maxYieldDividend": "",
+      "minYieldTotal": "3",
+      "maxYieldTotal": "",
+      "months": [
+        "8",
+        "9"
+      ],
+      "minRecommendation": "2",
+      "categories": [
+        "39",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "48",
+        "49",
+        "50",
+        "1",
+        "11",
+        "17",
+        "25",
+        "40",
+        "15",
+        "51",
+        "52"
+      ],
+      "longTerm": "",
+      "creditTrading": "loan"
+    },
+    "scraping": {
+      "intervalMinutes": 1,
+      "maxStocks": 100
+    }
   },
-  "scraping": {
-    "intervalMinutes": 1,
-    "maxStocks": 100
-  }
+  "history": []
 }
