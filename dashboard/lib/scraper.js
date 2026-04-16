@@ -4,6 +4,12 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 
 dotenv.config();
+dotenv.config({ path: '.env.local' });
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[Critical] Supabase configuration (URL or Service Role Key) is missing in environment variables.');
+    process.exit(1);
+}
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -59,7 +65,7 @@ export async function fetchStockList(config) {
     const { search } = config.current || config;
     
     // 検索フォームページへ移動
-    await page.goto('https://www.kabuyutai.com/tool/', { waitUntil: 'networkidle' });
+    await page.goto('https://www.kabuyutai.com/tool/', { waitUntil: 'load' });
 
     // --- 検索条件入力 (堅牢化版) ---
     
@@ -134,7 +140,7 @@ export async function fetchStockList(config) {
 
     // 「この条件で検索する」ボタンをクリック
     await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle' }),
+        page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
         page.click('input[name="btn"]')
     ]);
 
