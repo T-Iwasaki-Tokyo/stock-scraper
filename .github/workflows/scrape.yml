@@ -2,7 +2,7 @@ name: Stock Scraper Automation
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 毎日日本時間 9:00 (UTC 0:00) に実行
+    - cron: '0 10 * * *' # 毎日日本時間 19:00 (UTC 10:00) に実行
   workflow_dispatch: # 手動実行ボタンを有効化
 
 jobs:
