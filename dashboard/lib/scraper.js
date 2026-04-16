@@ -204,6 +204,7 @@ export async function fetchStockList(config) {
                 const tyEl = item.querySelector('[data-js="ty"]') || item.querySelector('.rima_num');
                 const descEl = item.querySelector('.yutai_content_text');
                 
+                const pTags = Array.from(item.querySelectorAll('p'));
                 const pickYield = (labelText) => {
                     const p = pTags.find(el => el.innerText.includes(labelText));
                     if (!p) return 'N/A';
