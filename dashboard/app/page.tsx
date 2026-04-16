@@ -17,6 +17,8 @@ export default function DashboardPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['金券・ポイント']);
   const [configName, setConfigName] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const fetchResults = useCallback(async () => {
     const res = await fetch('/api/results');
@@ -25,12 +27,15 @@ export default function DashboardPage() {
   }, []);
 
   const fetchConfig = useCallback(async () => {
-    const res = await fetch('/api/config');
-    const data = await res.json();
-    // 構造が変わったため、currentをプライマリな設定として扱う
-    setConfig(data);
-    if (data.current?.name) {
-      setConfigName(data.current.name);
+    try {
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      setConfig(data);
+      if (data.current?.name) {
+        setConfigName(data.current.name);
+      }
+    } catch (e) {
+      console.error('Config fetch failed:', e);
     }
   }, []);
 
@@ -45,20 +50,78 @@ export default function DashboardPage() {
       return;
     }
     setIsSaving(true);
-    const current = config.current || config;
-    const res = await fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        name: configName, 
-        config: { search: current.search, scraping: current.scraping } 
-      }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      setConfig(data.config);
+    try {
+      const current = config.current || config;
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: configName, 
+          config: { 
+            search: current.search, 
+            scraping: current.scraping,
+            mode: current.mode || 'condition'
+          } 
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConfig(data.config);
+        alert('設定を保存しました');
+      }
+    } catch (e) {
+      alert('保存に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+      alert('ファイルを選択してください');
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert(data.message);
+        fetchConfig(); // モードが更新されたので再取得
+      } else {
+        alert(`アップロード失敗: ${data.error}`);
+      }
+    } catch (e) {
+      alert('通信エラーが発生しました');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const setMode = async (mode: 'condition' | 'file') => {
+    const current = config.current || config;
+    if (current.mode === mode) return;
+
+    // 設定を保存してモードを切り替え
+    const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: configName, 
+          config: { ...current, mode } 
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConfig(data.config);
+      }
   };
 
   const loadHistoryConfig = (hist: any) => {
@@ -409,32 +472,81 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {config.history && config.history.length > 0 && (
-                <div className="main-panel p-6 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
-                      <Clock size={20} />
-                    </div>
-                    <div>
-                      <h4 className="font-black text-slate-900 leading-tight">保存済みの履歴 ({config.history.length}/12)</h4>
-                      <p className="text-xs text-slate-500 font-medium">過去の設定を呼び出せます</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1 max-w-[70%]">
-                    {config.history.map((h: any, idx: number) => (
-                      <button 
-                        key={idx} 
-                        onClick={() => loadHistoryConfig(h)}
-                        className={`shrink-0 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all ${config.current?.timestamp === h.timestamp ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'}`}
-                      >
-                        {h.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl w-fit">
+                <button 
+                  onClick={() => setMode('condition')}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-black transition-all ${((config.current || config).mode || 'condition') === 'condition' ? 'bg-white text-indigo-600 shadow-md translate-y-0' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Settings size={16} /> 条件指定
+                </button>
+                <button 
+                  onClick={() => setMode('file')}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-black transition-all ${((config.current || config).mode || 'condition') === 'file' ? 'bg-white text-indigo-600 shadow-md translate-y-0' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Download size={16} /> ファイル読込
+                </button>
+              </div>
 
-              <div className="grid grid-cols-1 gap-12 pb-24">
+              {((config.current || config).mode || 'condition') === 'file' ? (
+                <div className="main-panel p-16 rounded-3xl border-2 border-dashed border-slate-200 bg-white flex flex-col items-center gap-8 text-center">
+                  <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center">
+                    <FileSpreadsheet size={48} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black text-slate-800">銘柄リストのアップロード</h3>
+                    <p className="text-slate-500 max-w-md mx-auto">Excel (.xlsx) または CSV を読み込めます。<br/>A列に<strong>銘柄コード</strong>、B列に<strong>会社名</strong>を記載してください。</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+                    <input 
+                      type="file" 
+                      accept=".xlsx, .xls, .csv"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-black file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 cursor-pointer"
+                    />
+                    <button 
+                      onClick={handleFileUpload}
+                      disabled={isUploading || !selectedFile}
+                      className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-30 disabled:shadow-none transition-all flex items-center justify-center gap-2"
+                    >
+                      {isUploading ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} />}
+                      {isUploading ? '読み込み中...' : 'ファイルを読み込んで適用'}
+                    </button>
+                  </div>
+                  {((config.current || config).mode === 'file') && (
+                    <div className="mt-4 flex items-center gap-2 text-emerald-600 bg-emerald-50 px-6 py-3 rounded-full font-black text-sm">
+                      <CheckCircle size={18} />
+                      現在はファイル読み込みモードで動作します
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {config.history && config.history.length > 0 && (
+                    <div className="main-panel p-6 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                          <Clock size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-900 leading-tight">保存済みの履歴 ({config.history.length}/12)</h4>
+                          <p className="text-xs text-slate-500 font-medium">過去の設定を呼び出せます</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto pb-1 max-w-[70%]">
+                        {config.history.map((h: any, idx: number) => (
+                          <button 
+                            key={idx} 
+                            onClick={() => loadHistoryConfig(h)}
+                            className={`shrink-0 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all ${config.current?.id === h.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'}`}
+                          >
+                            {h.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-12 pb-24">
                 <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-10">
                   <div className="flex items-center gap-3 text-indigo-600 font-black text-lg border-b border-slate-50 pb-5">
                     <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
@@ -647,11 +759,13 @@ export default function DashboardPage() {
                       </div>
                    </div>
                 </div>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </main>
     </div>
-  );
+  </div>
+);
 }

@@ -1,43 +1,79 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const CONFIG_FILE = path.join(process.cwd(), 'config.json');
-
-function readConfig() {
-    if (!fs.existsSync(CONFIG_FILE)) {
-        return { current: {}, history: [] };
-    }
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
-}
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
-    const config = readConfig();
-    return NextResponse.json(config);
+    try {
+        const { data: configs, error } = await supabase
+            .from('configs')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const current = configs.find(c => c.is_current) || configs[0] || null;
+        return NextResponse.json({
+            current: current,
+            history: configs
+        });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }
 
 export async function POST(request: Request) {
-    const { name, config: newConfig } = await request.json();
-    const fullConfig = readConfig();
+    try {
+        const { name, config: newConfig } = await request.json();
+        
+        // すべての is_current を false に更新
+        await supabase
+            .from('configs')
+            .update({ is_current: false })
+            .neq('id', -1); // 全体に適用するためのダミー条件
 
-    // 名前をつけて履歴に追加
-    const historyEntry = {
-        name: name || `設定_${new Date().toLocaleString('ja-JP')}`,
-        ...newConfig,
-        timestamp: new Date().toISOString()
-    };
+        // 新しい設定を挿入 (is_current = true)
+        const historyEntry = {
+            name: name || `設定_${new Date().toLocaleString('ja-JP')}`,
+            search: newConfig.search,
+            scraping: newConfig.scraping,
+            mode: newConfig.mode || 'condition',
+            is_current: true,
+            created_at: new Date().toISOString()
+        };
 
-    // 履歴の更新（最大12件）
-    const newHistory = [historyEntry, ...(fullConfig.history || [])];
-    if (newHistory.length > 12) {
-        newHistory.pop(); // 古いものを削除
+        const { data: inserted, error: insertError } = await supabase
+            .from('configs')
+            .insert([historyEntry])
+            .select()
+            .single();
+
+        if (insertError) throw insertError;
+
+        // 12件超えた分を削除
+        const { data: allConfigs } = await supabase
+            .from('configs')
+            .select('id')
+            .order('created_at', { ascending: false });
+
+        if (allConfigs && allConfigs.length > 12) {
+            const idsToDelete = allConfigs.slice(12).map(c => c.id);
+            await supabase.from('configs').delete().in('id', idsToDelete);
+        }
+
+        // 最新の状態を返却
+        const { data: updatedConfigs } = await supabase
+            .from('configs')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        return NextResponse.json({ 
+            success: true, 
+            config: {
+                current: inserted,
+                history: updatedConfigs
+            } 
+        });
+    } catch (error: any) {
+        console.error('Save Config Error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    const updatedFullConfig = {
-        current: historyEntry,
-        history: newHistory
-    };
-
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(updatedFullConfig, null, 2));
-    return NextResponse.json({ success: true, config: updatedFullConfig });
 }

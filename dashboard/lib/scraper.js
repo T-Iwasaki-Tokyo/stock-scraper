@@ -231,12 +231,62 @@ export async function fetchStockDetail(code) {
 // GitHub Actions 等でコマンドラインからも実行可能なようにエントリポイントを用意
 if (process.argv[1]?.endsWith('scraper.js')) {
     (async () => {
-        const fullConfig = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
-        const config = fullConfig.current || fullConfig;
-        const list = await fetchStockList(config);
-        for (const s of list) {
-            await fetchStockDetail(s.code);
-            await new Promise(r => setTimeout(r, 60000)); // 1分待機
+        console.log('[Start] 実行開始...');
+        
+        // 現在の設定を Supabase から取得
+        const { data: configRows, error: configError } = await supabase
+            .from('configs')
+            .select('*')
+            .eq('is_current', true)
+            .single();
+
+        if (configError) {
+            console.error('[Error] Config fetch failed:', configError.message);
+            process.exit(1);
         }
+
+        const config = configRows;
+        let list = [];
+
+        if (config.mode === 'file') {
+            console.log('[Mode] ファイル読み込みモード');
+            const { data: targetStocks, error: targetError } = await supabase
+                .from('target_stocks')
+                .select('code, name');
+            
+            if (targetError) {
+                console.error('[Error] Target stocks fetch failed:', targetError.message);
+                process.exit(1);
+            }
+
+            list = (targetStocks || []).map(s => ({
+                code: s.code,
+                name: s.name,
+                status: 'pending'
+            }));
+        } else {
+            console.log('[Mode] 条件検索モード');
+            list = await fetchStockList(config);
+        }
+
+        console.log(`[Process] ${list.length} 件の銘柄を処理します...`);
+        
+        for (let i = 0; i < list.length; i++) {
+            const s = list[i];
+            console.log(`[${i + 1}/${list.length}] ${s.name} (${s.code}) を取得中...`);
+            try {
+                await fetchStockDetail(s.code);
+            } catch (e) {
+                console.error(`[Error] Detail fetch failed for ${s.code}:`, e.message);
+            }
+            
+            if (i < list.length - 1) {
+                const waitMinutes = config.scraping?.intervalMinutes || 1;
+                console.log(`[Wait] ${waitMinutes} 分間待機します...`);
+                await new Promise(r => setTimeout(r, waitMinutes * 60 * 1000));
+            }
+        }
+        
+        console.log('[End] すべての処理が完了しました');
     })();
 }
