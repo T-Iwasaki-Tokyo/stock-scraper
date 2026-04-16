@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const [lastScreenshotUrl, setLastScreenshotUrl] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchResults = useCallback(async () => {
     const res = await fetch('/api/results', { cache: 'no-store' });
@@ -33,6 +34,7 @@ export default function DashboardPage() {
     if (supabaseUrl) {
       setLastScreenshotUrl(`${supabaseUrl}/storage/v1/object/public/screenshots/last_search.png?t=${Date.now()}`);
     }
+    setLastUpdated(new Date());
   }, []);
 
   const status = useMemo(() => {
@@ -48,6 +50,17 @@ export default function DashboardPage() {
   const isRunning = status.phase === 'fetching';
 
   useEffect(() => {
+    // 常に30秒ごとにバックグラウンドで更新をチェック
+    // これにより、GitHub Actionsが開始されたことを検知できるようになります
+    const backgroundTimer = setInterval(() => {
+      fetchResults();
+    }, 30000);
+
+    return () => clearInterval(backgroundTimer);
+  }, [fetchResults]);
+
+  useEffect(() => {
+    // 詳細情報を取得中の時は5秒ごとに高頻度で更新
     let timer: any;
     if (isRunning) {
       timer = setInterval(() => {
@@ -300,6 +313,14 @@ export default function DashboardPage() {
         <div className="px-8 py-5 bg-slate-950/40 border-t border-slate-800/50">
           <p className="text-[10px] text-slate-500 font-bold mb-1">株主優待自動検索システム</p>
           <p className="text-[9px] text-slate-600">バージョン 8.1 | クラウド対応版</p>
+          {lastUpdated && (
+            <div className="mt-4 pt-4 border-t border-slate-800/30">
+              <p className="text-[9px] text-slate-500 font-bold flex items-center gap-2">
+                <RefreshCw size={10} className={isRunning ? 'animate-spin text-indigo-400' : 'text-slate-600'} />
+                同期時刻: {lastUpdated.toLocaleTimeString()}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

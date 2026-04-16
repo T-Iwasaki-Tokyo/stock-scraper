@@ -82,17 +82,12 @@ export async function fetchStockList(config) {
     // 2. カテゴリ (cat_group)
     const targetCategories = search.categories || [];
     for (const catVal of targetCategories) {
-        // カテゴリ名から番号を除去したテキストで検索を試みる
-        const labelBase = catVal.replace(/[0-9]+$/, ''); 
-        const labelSelector = `label:has-text("${labelBase}")`;
         try {
-            // catValそのものに合致するinputを探し、その周辺のラベルをクリック
-            const input = page.locator(`input[name="cat_group"][value="${catVal}"]`);
-            if (await input.isVisible()) {
-                await input.check({ force: true });
-            } else {
-                // 見えない場合はテキストでクリック
-                await page.click(labelSelector);
+            // catVal (例: "その他5") に合致するinputを特定し、その親ラベルをクリックする
+            const inputSelector = `input[name="cat_group"][value="${catVal}"]`;
+            const label = page.locator(inputSelector).locator('xpath=..');
+            if (await label.isVisible()) {
+                await label.click();
             }
         } catch (e) {
             console.warn(`[Warn] Could not select category ${catVal}:`, e.message);
