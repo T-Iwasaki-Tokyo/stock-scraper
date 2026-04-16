@@ -136,23 +136,7 @@ export async function fetchStockList(config) {
         await page.check('input[name="dn"][value=""]'); // 全銘柄
     }
 
-    // 「この条件で検索する」ボタンをクリック (UI変更に対応)
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
-        page.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a'));
-            const btn = links.find(a => a.innerText.includes('この条件で検索する') && a.offsetWidth > 0 && a.offsetHeight > 0);
-            if (btn) {
-                btn.click();
-            } else {
-                // フォールバック: input[name="btn"] が存在すればそれを使う
-                const fallbackBtn = Array.from(document.querySelectorAll('input[name="btn"]')).find(el => el.offsetWidth > 0 && el.offsetHeight > 0);
-                if (fallbackBtn) fallbackBtn.click();
-            }
-        })
-    ]);
-
-    // スクリーンショット撮影とアップロード
+    // --- スクリーンショット撮影（検索条件入力後・検索実行前） ---
     const screenshotPath = 'public/screenshots/last_search.png';
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
@@ -173,11 +157,27 @@ export async function fetchStockList(config) {
         if (uploadError) {
             console.error('[Error] Failed to upload screenshot to Supabase Storage:', uploadError.message);
         } else {
-            console.log('[Phase 1] 検索結果スクリーンショットを Supabase Storage にアップロードしました');
+            console.log('[Phase 1] 検索条件画面のスクリーンショットを Supabase Storage にアップロードしました');
         }
     } catch (err) {
         console.error('[Error] File read or unexpected error during screenshot upload:', err);
     }
+
+    // 「この条件で検索する」ボタンをクリック (UI変更に対応)
+    await Promise.all([
+        page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
+        page.evaluate(() => {
+            const links = Array.from(document.querySelectorAll('a'));
+            const btn = links.find(a => a.innerText.includes('この条件で検索する') && a.offsetWidth > 0 && a.offsetHeight > 0);
+            if (btn) {
+                btn.click();
+            } else {
+                // フォールバック: input[name="btn"] が存在すればそれを使う
+                const fallbackBtn = Array.from(document.querySelectorAll('input[name="btn"]')).find(el => el.offsetWidth > 0 && el.offsetHeight > 0);
+                if (fallbackBtn) fallbackBtn.click();
+            }
+        })
+    ]);
 
     // --- 結果解析 ---
     let allStocks = [];
@@ -202,14 +202,14 @@ export async function fetchStockList(config) {
                     const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
                     const val = span.innerText.trim();
-                    const match = val.match(/[0-9.]+/);
+                    const match = val.match(/[0-9.]+%?/);
                     return match ? match[0] : 'N/A';
                 };
 
                 return {
                     name: nameLink ? nameLink.innerText.trim() : '不明',
                     code: codeSpan ? codeSpan.innerText.trim() : null,
-                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+/) || ['N/A'])[0] : 'N/A',
+                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+%?/) || ['N/A'])[0] : 'N/A',
                     dividendYield: pickYield('【予想配当利回り】'),
                     yutaiYield: pickYield('【優待利回り】'),
                     yutai_desc: descEl ? descEl.innerText.trim() : '',
@@ -294,12 +294,12 @@ export async function fetchStockDetail(code) {
                     const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
                     const val = span.innerText.trim();
-                    const match = val.match(/[0-9.]+/);
+                    const match = val.match(/[0-9.]+%?/);
                     return match ? match[0] : 'N/A';
                 };
 
                 return {
-                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+/) || ['N/A'])[0] : 'N/A',
+                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+%?/) || ['N/A'])[0] : 'N/A',
                     yutaiYield: pickYield('【優待利回り】'),
                     yutai_desc: descEl ? descEl.innerText.trim() : ''
                 };

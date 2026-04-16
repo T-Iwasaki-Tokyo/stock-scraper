@@ -12,9 +12,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
   const [config, setConfig] = useState<any>(null);
   const [results, setResults] = useState<any[]>([]);
-  const [status, setStatus] = useState<any>({ phase: 'idle', message: '待機中', current: 0, total: 0 });
   const [isSaving, setIsSaving] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(['金券・ポイント']);
   const [configName, setConfigName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -37,11 +35,34 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const progress = useMemo(() => {
-    if (results.length === 0) return 0;
-    const completed = results.filter(r => r.status === 'complete').length;
-    return Math.round((completed / results.length) * 100);
+  const status = useMemo(() => {
+    if (results.length === 0) return { phase: 'idle', message: '待機中', current: 0, total: 0 };
+    const total = results.length;
+    const current = results.filter(r => r.status === 'complete').length;
+    if (total > 0 && current < total) {
+      return { phase: 'fetching', message: `詳細情報をクラウドで取得中です... (${current}/${total})`, current, total };
+    }
+    return { phase: 'completed', message: '最新情報の取得が完了しています', current, total };
   }, [results]);
+
+  const isRunning = status.phase === 'fetching';
+
+  useEffect(() => {
+    let timer: any;
+    if (isRunning) {
+      timer = setInterval(() => {
+        fetchResults();
+      }, 5000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isRunning, fetchResults]);
+
+  const progress = useMemo(() => {
+    if (status.total === 0) return 0;
+    return Math.round((status.current / status.total) * 100);
+  }, [status]);
 
   const sortedResults = useMemo(() => {
     return [...results].sort((a, b) => {
@@ -207,51 +228,9 @@ export default function DashboardPage() {
     setConfigName(hist.name);
   };
 
-  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
   const handleRunScraper = async () => {
-    if (!config) return;
-    const currentConfig = config.current || config;
-    setIsRunning(true);
-    setResults([]);
-    
-    setStatus({ phase: 'searching', message: '銘柄リストを作成しています...', current: 0, total: 0 });
-    const listRes = await fetch('/api/scrape/list', { method: 'POST' });
-    const listData = await listRes.json();
-    
-    if (!listData.success) {
-      setStatus({ phase: 'error', message: `エラー: ${listData.error}`, current: 0, total: 0 });
-      setIsRunning(false);
-      return;
-    }
-
-    const stocks = listData.stocks;
-    setResults(stocks);
-    setStatus({ phase: 'fetching', message: '詳細情報を1銘柄ずつ取得します', current: 0, total: stocks.length });
-
-    for (let i = 0; i < stocks.length; i++) {
-      const stock = stocks[i];
-      setStatus({ phase: 'fetching', message: `${stock.name} (${stock.code}) を取得中...`, current: i + 1, total: stocks.length });
-      
-      const detailRes = await fetch(`/api/scrape/detail?code=${stock.code}`);
-      const detailData = await detailRes.json();
-
-      if (detailData.success) {
-        setResults(prev => prev.map(s => s.code === stock.code ? { ...s, ...detailData.detail } : s));
-      }
-
-      if (i < stocks.length - 1) {
-        const waitMs = (currentConfig.scraping.intervalMinutes || 1) * 60 * 1000;
-        const waitSeconds = Math.floor(waitMs / 1000);
-        for(let s = waitSeconds; s > 0; s--) {
-          setStatus((prev: any) => ({ ...prev, message: `次の銘柄まで待機中...あと ${s} 秒` }));
-          await sleep(1000);
-        }
-      }
-    }
-
-    setStatus({ phase: 'completed', message: 'すべての情報の取得が完了しました', current: stocks.length, total: stocks.length });
-    setIsRunning(false);
+    alert("【お知らせ】\n\n株主優待の検索処理は、現在クラウド環境（GitHub Actions）で全自動で実行されるようにアップグレードされています。\nそのため、この画面からサーバーに負荷をかける手動実行はできません。\n\n最新データを直ちに取得したい場合は、GitHubレポジトリの「Actions」タブから手動で実行（Run workflow）してください。\n（実行中は、この画面を開いたままにしておくと自動で進捗が更新されます）");
+    fetchResults(); // 更新用
   };
 
   const downloadCSV = () => {
