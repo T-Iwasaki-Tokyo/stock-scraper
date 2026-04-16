@@ -65,28 +65,39 @@ export async function fetchStockList(config) {
     // 検索フォームページへ移動
     await page.goto('https://www.kabuyutai.com/tool/', { waitUntil: 'load' });
 
-    // --- 検索条件入力 (堅牢化版) ---
-    
-    // 1. 権利確定月 (fm[]) & 2. カテゴリ (cat_group) を DOM 操作でセット (非表示要素でも確実に実行)
-    await page.evaluate((s) => {
-        // 確定月
-        document.querySelectorAll('input[name="fm[]"]').forEach(el => {
-            const isChecked = s.months?.includes(el.value);
-            if (el.checked !== isChecked) {
-                el.checked = isChecked;
-                el.dispatchEvent(new Event('change', { bubbles: true }));
+    // 1. 権利確定月 (fm[])
+    const targetMonths = search.months || [];
+    for (const m of targetMonths) {
+        const labelText = `${m}月`;
+        const labelSelector = `label:has-text("${labelText}")`;
+        try {
+            if (await page.locator(labelSelector).isVisible()) {
+                await page.click(labelSelector);
             }
-        });
+        } catch (e) {
+            console.warn(`[Warn] Could not click month label for ${m}:`, e.message);
+        }
+    }
 
-        // カテゴリ
-        document.querySelectorAll('input[name="cat_group"]').forEach(el => {
-            const isChecked = s.categories?.includes(el.value);
-            if (el.checked !== isChecked) {
-                el.checked = isChecked;
-                el.dispatchEvent(new Event('change', { bubbles: true }));
+    // 2. カテゴリ (cat_group)
+    const targetCategories = search.categories || [];
+    for (const catVal of targetCategories) {
+        // カテゴリ名から番号を除去したテキストで検索を試みる
+        const labelBase = catVal.replace(/[0-9]+$/, ''); 
+        const labelSelector = `label:has-text("${labelBase}")`;
+        try {
+            // catValそのものに合致するinputを探し、その周辺のラベルをクリック
+            const input = page.locator(`input[name="cat_group"][value="${catVal}"]`);
+            if (await input.isVisible()) {
+                await input.check({ force: true });
+            } else {
+                // 見えない場合はテキストでクリック
+                await page.click(labelSelector);
             }
-        });
-    }, search);
+        } catch (e) {
+            console.warn(`[Warn] Could not select category ${catVal}:`, e.message);
+        }
+    }
 
     // おすすめ度 (st)
     if (search.minRecommendation) {
@@ -193,31 +204,24 @@ export async function fetchStockList(config) {
                 const tyEl = item.querySelector('[data-js="ty"]') || item.querySelector('.rima_num');
                 const descEl = item.querySelector('.yutai_content_text');
                 
-                const pTags = Array.from(item.querySelectorAll('p'));
                 const pickYield = (labelText) => {
-                    // item全体からlabelTextを含む要素を探す（pタグに限定しない）
-                    const targetEl = Array.from(item.querySelectorAll('*')).find(el => 
-                        el.children.length === 0 && el.innerText.includes(labelText)
-                    ) || Array.from(item.querySelectorAll('*')).find(el => 
-                        el.innerText.includes(labelText)
-                    );
-
-                    if (!targetEl) return 'N/A';
-                    
-                    // その要素の親や周辺から .tousi_price クラスを探す
-                    const container = targetEl.closest('div, p, td') || item;
-                    const span = container.querySelector('.tousi_price');
+                    const p = pTags.find(el => el.innerText.includes(labelText));
+                    if (!p) return 'N/A';
+                    const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
-                    
                     const val = span.innerText.trim();
-                    const match = val.match(/[0-9.]+%?/);
+                    // 数値と全角・半角の％を取得
+                    const match = val.match(/[0-9.]+[%％]?/);
                     return match ? match[0] : 'N/A';
                 };
+
+                const tyText = tyEl ? tyEl.innerText.trim() : 'N/A';
+                const tyMatch = tyText.match(/[0-9.]+[%％]?/);
 
                 return {
                     name: nameLink ? nameLink.innerText.trim() : '不明',
                     code: codeSpan ? codeSpan.innerText.trim() : null,
-                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+%?/) || ['N/A'])[0] : 'N/A',
+                    totalYield: tyMatch ? tyMatch[0] : 'N/A',
                     dividendYield: pickYield('【予想配当利回り】'),
                     yutaiYield: pickYield('【優待利回り】'),
                     yutai_desc: descEl ? descEl.innerText.trim() : '',
@@ -297,25 +301,20 @@ export async function fetchStockDetail(code) {
                 const pTags = Array.from(item.querySelectorAll('p'));
                 
                 const pickYield = (labelText) => {
-                    const targetEl = Array.from(item.querySelectorAll('*')).find(el => 
-                        el.children.length === 0 && el.innerText.includes(labelText)
-                    ) || Array.from(item.querySelectorAll('*')).find(el => 
-                        el.innerText.includes(labelText)
-                    );
-
-                    if (!targetEl) return 'N/A';
-                    
-                    const container = targetEl.closest('div, p, td') || item;
-                    const span = container.querySelector('.tousi_price');
+                    const p = pTags.find(el => el.innerText.includes(labelText));
+                    if (!p) return 'N/A';
+                    const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
-                    
                     const val = span.innerText.trim();
-                    const match = val.match(/[0-9.]+%?/);
+                    const match = val.match(/[0-9.]+[%％]?/);
                     return match ? match[0] : 'N/A';
                 };
 
+                const tyText = tyEl ? tyEl.innerText.trim() : 'N/A';
+                const tyMatch = tyText.match(/[0-9.]+[%％]?/);
+
                 return {
-                    totalYield: tyEl ? (tyEl.innerText.match(/[0-9.]+%?/) || ['N/A'])[0] : 'N/A',
+                    totalYield: tyMatch ? tyMatch[0] : 'N/A',
                     yutaiYield: pickYield('【優待利回り】'),
                     yutai_desc: descEl ? descEl.innerText.trim() : ''
                 };
