@@ -155,17 +155,28 @@ export async function fetchStockList(config) {
     // スクリーンショット撮影とアップロード
     const screenshotPath = 'public/screenshots/last_search.png';
     await page.screenshot({ path: screenshotPath, fullPage: true });
-    
+
     try {
         const fileContent = fs.readFileSync(screenshotPath);
-        // バケットの存在確認は省略（プログラムで作成は権限が必要なため、既存を前提とするか、エラーをキャッチ）
-        await supabase.storage.from('screenshots').upload('last_search.png', fileContent, {
+        
+        // バケットが存在するか確認（なければ作成）
+        const { data: buckets } = await supabase.storage.listBuckets();
+        if (!buckets?.find(b => b.name === 'screenshots')) {
+            await supabase.storage.createBucket('screenshots', { public: true });
+        }
+
+        const { error: uploadError } = await supabase.storage.from('screenshots').upload('last_search.png', fileContent, {
             contentType: 'image/png',
             upsert: true
         });
-        console.log('[Phase 1] 検索結果スクリーンショットを Supabase Storage にアップロードしました');
+
+        if (uploadError) {
+            console.error('[Error] Failed to upload screenshot to Supabase Storage:', uploadError.message);
+        } else {
+            console.log('[Phase 1] 検索結果スクリーンショットを Supabase Storage にアップロードしました');
+        }
     } catch (err) {
-        console.error('Failed to upload screenshot to Supabase Storage:', err);
+        console.error('[Error] File read or unexpected error during screenshot upload:', err);
     }
 
     // --- 結果解析 ---
