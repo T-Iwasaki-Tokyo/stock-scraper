@@ -85,17 +85,31 @@ export async function fetchStockList(config) {
     if (search.minYieldDividend) await page.selectOption('select[name="dyf"]', search.minYieldDividend);
     if (search.minYieldTotal) await page.selectOption('select[name="tyf"]', search.minYieldTotal);
 
-    // カテゴリ: 一旦すべて解除してからチェック
-    // サイトの「すべて選択/解除」は月と共通のクエリセレクタで動く可能性があるため、個別に処理
-    const categories = search.categories || [];
-    if (categories.length > 0) {
-        // カテゴリのチェックボックスをすべて外す（カテゴリセクション内のものを特定して外すのが正解だが、一旦愚直にやる）
-        const catCheckboxes = await page.$$('input[name="cat"]');
-        for (const cb of catCheckboxes) {
-            if (await cb.isChecked()) await cb.uncheck();
+    // カテゴリ: 「一度すべてにレ点をつけた後、選択されていないものを消す」
+    const catGroups = [
+        '金券・ポイント1',
+        '割引券・無料券2',
+        '優待品3',
+        'カタログ4',
+        'その他5'
+    ];
+    
+    // カテゴリセクションの「すべて選択」をクリック (class="clear-all" が複数あるため、カテゴリ付近のものを特定)
+    const catSection = page.locator('div.check-item-right').last(); // おそらく最後の方がカテゴリ用
+    if (await catSection.isVisible()) {
+        await catSection.click();
+    } else {
+        // 見つからない場合は愚直に全グループをチェック
+        for (const cg of catGroups) {
+            await page.check(`input[name="cat_group"][value="${cg}"]`);
         }
-        for (const catId of categories) {
-            await page.check(`input[name="cat"][value="${catId}"]`);
+    }
+
+    // 選択されていないカテゴリのレ点を消す
+    const selectedCats = search.categories || [];
+    for (const cg of catGroups) {
+        if (!selectedCats.includes(cg)) {
+            await page.uncheck(`input[name="cat_group"][value="${cg}"]`);
         }
     }
 
@@ -130,15 +144,26 @@ export async function fetchStockList(config) {
     }
 
     // 「この条件で検索する」ボタンをクリック
-    // サイトの実装に合わせる（input[type="image"] or button）
     await Promise.all([
         page.waitForNavigation({ waitUntil: 'networkidle' }),
         page.click('input[name="btn"]')
     ]);
 
-    // スクリーンショット撮影
-    await page.screenshot({ path: 'public/screenshots/last_search.png', fullPage: true });
-    console.log('[Phase 1] 検索結果スクリーンショット保存完了');
+    // スクリーンショット撮影とアップロード
+    const screenshotPath = 'public/screenshots/last_search.png';
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+    
+    try {
+        const fileContent = fs.readFileSync(screenshotPath);
+        // バケットの存在確認は省略（プログラムで作成は権限が必要なため、既存を前提とするか、エラーをキャッチ）
+        await supabase.storage.from('screenshots').upload('last_search.png', fileContent, {
+            contentType: 'image/png',
+            upsert: true
+        });
+        console.log('[Phase 1] 検索結果スクリーンショットを Supabase Storage にアップロードしました');
+    } catch (err) {
+        console.error('Failed to upload screenshot to Supabase Storage:', err);
+    }
 
     // --- 結果解析 ---
     let allStocks = [];

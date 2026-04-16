@@ -105,3 +105,26 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const name = searchParams.get('name');
+
+        if (!name) {
+            return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+        }
+
+        const { error } = await supabase
+            .from('configs')
+            .delete()
+            .eq('name', name);
+
+        if (error) throw error;
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error('Delete Config Error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

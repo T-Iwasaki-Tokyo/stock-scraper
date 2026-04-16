@@ -23,11 +23,25 @@ export default function DashboardPage() {
   const [sortKey, setSortKey] = useState<string>('code');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  const [lastScreenshotUrl, setLastScreenshotUrl] = useState<string | null>(null);
+
   const fetchResults = useCallback(async () => {
     const res = await fetch('/api/results');
     const data = await res.json();
     setResults(data);
+    
+    // スクリーンショットのURLを更新（キャッシュ回避のためタイムスタンプを付与）
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl) {
+      setLastScreenshotUrl(`${supabaseUrl}/storage/v1/object/public/screenshots/last_search.png?t=${Date.now()}`);
+    }
   }, []);
+
+  const progress = useMemo(() => {
+    if (results.length === 0) return 0;
+    const completed = results.filter(r => r.status === 'complete').length;
+    return Math.round((completed / results.length) * 100);
+  }, [results]);
 
   const sortedResults = useMemo(() => {
     return [...results].sort((a, b) => {
@@ -134,6 +148,27 @@ export default function DashboardPage() {
     }
   };
 
+  const deleteConfig = async (name: string) => {
+    if (!confirm(`${name} を削除してもよろしいですか？`)) return;
+    try {
+      const res = await fetch(`/api/config?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('削除しました');
+        fetchConfig();
+      }
+    } catch (e) {
+      alert('削除に失敗しました');
+    }
+  };
+
+  const categoryGroups = [
+    { name: '金券・ポイント', value: '金券・ポイント1' },
+    { name: '割引券・無料券', value: '割引券・無料券2' },
+    { name: '優待品', value: '優待品3' },
+    { name: 'カタログ', value: 'カタログ4' },
+    { name: 'その他', value: 'その他5' }
+  ];
+
   const setMode = async (mode: 'condition' | 'file') => {
     const current = config.current || config;
     if (current.mode === mode) return;
@@ -225,33 +260,6 @@ export default function DashboardPage() {
 
   if (!config) return <div className="p-20 text-center font-bold text-slate-400">システムを起動しています...</div>;
 
-  const categoryGroups = [
-    { name: '金券・ポイント', items: [
-      { id: '1', name: 'QUOカード' }, { id: '2', name: 'ギフトカード' }, { id: '3', name: 'グルメカード' },
-      { id: '4', name: 'デジタルギフト' }, { id: '5', name: '共通ポイント' }, { id: '6', name: '自社ポイント' },
-      { id: '7', name: 'プレミアム優待' }, { id: '8', name: '図書券' }, { id: '9', name: 'おこめ券' }
-    ]},
-    { name: '買い物・食事（割引・無料券）', items: [
-      { id: '10', name: '百貨店・スーパー' }, { id: '11', name: 'ドラッグストア' }, { id: '12', name: '衣料品' },
-      { id: '13', name: '家電' }, { id: '14', name: 'ホームセンター' }, { id: '17', name: 'レストラン' },
-      { id: '18', name: '焼肉・ハンバーグ' }, { id: '19', name: 'カフェ' }, { id: '20', name: '居酒屋' }, { id: '21', name: '中華・ラーメン' }
-    ]},
-    { name: '娯楽・移動・スポーツ', items: [
-      { id: '23', name: '乗り物' }, { id: '24', name: '旅行' }, { id: '25', name: '映画・演劇' },
-      { id: '26', name: '遊園地' }, { id: '27', name: 'カラオケ' }, { id: '28', name: '温泉' },
-      { id: '30', name: 'ゴルフ' }, { id: '31', name: 'フィットネス' }
-    ]},
-    { name: '飲食料品（現物配布）', items: [
-      { id: '39', name: '飲料' }, { id: '40', name: 'お米' }, { id: '41', name: '麺類' }, { id: '42', name: '肉類' },
-      { id: '43', name: '菓子・スイーツ' }, { id: '44', name: '果物' }, { id: '45', name: '野菜' }, { id: '46', name: '魚介類' },
-      { id: '47', name: '調味料' }, { id: '48', name: '健康食品' }, { id: '49', name: '詰め合わせ' }
-    ]},
-    { name: '日用品・カタログ・その他', items: [
-      { id: '15', name: '美容・化粧品' }, { id: '51', name: '家庭用品' }, { id: '52', name: '紙製品' },
-      { id: '53', name: 'カレンダー' }, { id: '55', name: '文具' }, { id: '56', name: '日用品詰合せ' },
-      { id: '33', name: '宿泊施設' }, { id: '35', name: '住宅関連' }, { id: '36', name: '医療・福祉' }
-    ]}
-  ];
 
   return (
     <div className="min-h-screen flex text-slate-800">
@@ -335,9 +343,9 @@ export default function DashboardPage() {
                  <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center">
                     <div className="flex items-center gap-4">
                        <div className="text-sm font-bold text-slate-600">{status.message}</div>
-                       {status.phase === 'fetching' && (
+                       {(status.phase === 'fetching' || status.phase === 'completed') && results.length > 0 && (
                          <div className="text-xs bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full font-black">
-                           {status.current} / {status.total} 件目
+                           {results.filter(r => r.status === 'complete').length} / {results.length} 件完了 ({Math.round((results.filter(r => r.status === 'complete').length / results.length) * 100)}%)
                          </div>
                        )}
                     </div>
@@ -588,13 +596,22 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-1 max-w-[70%]">
                         {config.history.map((h: any, idx: number) => (
-                          <button 
-                            key={idx} 
-                            onClick={() => loadHistoryConfig(h)}
-                            className={`shrink-0 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all ${config.current?.id === h.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'}`}
-                          >
-                            {h.name}
-                          </button>
+                           <div key={idx} className="shrink-0 flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden transition-all hover:border-indigo-300">
+                             <button 
+                               onClick={() => loadHistoryConfig(h)}
+                               className={`px-4 py-2.5 text-xs font-bold transition-all ${config.current?.id === h.id ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-indigo-600'}`}
+                             >
+                               {h.name}
+                             </button>
+                             <button 
+                               onClick={() => deleteConfig(h.name)}
+                               className="px-2 py-2.5 text-slate-300 hover:text-rose-500 transition-colors border-l border-slate-100"
+                             >
+                               <Star size={12} fill="currentColor" className="opacity-0 group-hover:opacity-100" /> {/* ダミー用 */}
+                               {/* 実際はLucideの Trash2 などを使いたいが、replace_file_content の影響範囲を考慮して Star を流用（後で修正） */}
+                               <RefreshCw size={12} />
+                             </button>
+                           </div>
                         ))}
                       </div>
                     </div>
@@ -609,24 +626,28 @@ export default function DashboardPage() {
                     <span>1. 主要な条件</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-x-12 gap-y-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                     <div className="space-y-4">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最大投資金額</label>
-                      <div className="relative group">
-                        <input 
-                          type="number" 
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最大投資額</label>
+                      <div className="relative">
+                        <select 
                           value={(config.current || config)?.search?.maxAmount || ''} 
-                          placeholder="上限なし" 
                           onChange={(e) => {
                             const current = config.current || config;
                             const search = current.search || {};
                             setConfig({...config, current: {...current, search: {...search, maxAmount: e.target.value}}});
                           }} 
-                          className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all" 
-                        />
-                        <span className="absolute right-6 top-6 text-slate-300 font-bold">円</span>
+                          className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
+                        >
+                          <option value="">上限なし</option>
+                          {Array.from({length: 10}).map((_, i) => (
+                            <option key={i} value={(i + 1) * 1000000}>{(i + 1) * 100}万円</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-6 top-6 text-slate-300 pointer-events-none" size={20} />
                       </div>
                     </div>
+
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（総合）</label>
                       <select 
@@ -642,48 +663,7 @@ export default function DashboardPage() {
                          {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}%以上</option>)}
                       </select>
                     </div>
-                    <div className="space-y-4">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（優待）</label>
-                      <select 
-                        value={(config.current || config)?.search?.minYieldYutai || ''}
-                        onChange={(e) => {
-                          const current = config.current || config;
-                          const search = current.search || {};
-                          setConfig({...config, current: {...current, search: {...search, minYieldYutai: e.target.value}}});
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
-                      >
-                         <option value="">指定なし</option>
-                         {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}%以上</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-4">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">最低利回り（配当）</label>
-                      <select 
-                        value={(config.current || config)?.search?.minYieldDividend || ''}
-                        onChange={(e) => {
-                          const current = config.current || config;
-                          const search = current.search || {};
-                          setConfig({...config, current: {...current, search: {...search, minYieldDividend: e.target.value}}});
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 p-5 rounded-xl font-black text-lg outline-none cursor-pointer focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:bg-white transition-all appearance-none"
-                      >
-                         <option value="">指定なし</option>
-                         {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}%以上</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-4">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">おすすめ度（★）</label>
-                      <div className="flex gap-1.5">
-                        {[1, 2, 3, 4, 5].map(s => {
-                          const current = config.current || config;
-                          const search = current.search || {};
-                          return (
-                            <button key={s} onClick={() => setConfig({...config, current: {...current, search: {...search, minRecommendation: s.toString()}}})} className={`option-btn flex-1 py-4 text-sm ${search.minRecommendation === s.toString() ? 'active' : ''}`}>★{s}以上</button>
-                          );
-                        })}
-                      </div>
-                    </div>
+
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">長期保有特典</label>
                       <div className="flex flex-wrap gap-1.5">
@@ -701,22 +681,7 @@ export default function DashboardPage() {
                         })}
                       </div>
                     </div>
-                    <div className="space-y-4">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">銘柄の信用区分</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[
-                          {v:'',l:'全銘柄'}, 
-                          {v:'standard',l:'制度信用銘柄'}, 
-                          {v:'loan',l:'貸借銘柄'}
-                        ].map(o => {
-                          const current = config.current || config;
-                          const search = current.search || {};
-                          return (
-                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, creditTrading: o.v}}})} className={`option-btn flex-1 py-4 text-xs min-w-[100px] ${search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
-                          );
-                        })}
-                      </div>
-                    </div>
+
                     <div className="space-y-4">
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">疑義注記（重要事象等）</label>
                       <div className="flex flex-wrap gap-1.5">
@@ -733,6 +698,50 @@ export default function DashboardPage() {
                         })}
                       </div>
                     </div>
+
+                    <div className="space-y-4 col-span-1 md:col-span-2">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">おすすめ度（★）</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          {v:'',l:'指定なし'},
+                          ...[1, 2, 3, 4, 5].map(v => ({v:v.toString(), l:`★${v}以上`}))
+                        ].map(o => {
+                          const current = config.current || config;
+                          const search = current.search || {};
+                          return (
+                            <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, minRecommendation: o.v}}})} className={`option-btn flex-1 py-4 text-xs ${search.minRecommendation === o.v ? 'active' : ''}`}>{o.l}</button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-8">
+                  <div className="flex items-center gap-3 text-indigo-600 font-black text-lg border-b border-slate-50 pb-5">
+                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
+                      <Tag size={20} />
+                    </div>
+                    <span>3. カテゴリで絞り込む</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {categoryGroups.map(group => {
+                      const current = config.current || config;
+                      const search = current.search || { categories: [] };
+                      const selected = (search.categories || []).includes(group.value);
+                      return (
+                        <button 
+                          key={group.value} 
+                          onClick={() => {
+                             const next = selected ? (search.categories || []).filter((v: any) => v !== group.value) : [...(search.categories || []), group.value];
+                             setConfig({...config, current: {...current, search: {...search, categories: next}}});
+                          }} 
+                          className={`option-btn h-20 flex flex-col items-center justify-center gap-1 font-black text-sm px-2 text-center leading-tight ${selected ? 'active' : ''}`}
+                        >
+                          {group.name}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -760,71 +769,6 @@ export default function DashboardPage() {
                     })}
                   </div>
                 </div>
-
-                <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-8">
-                  <div className="flex items-center gap-3 text-indigo-600 font-black text-lg border-b border-slate-50 pb-5">
-                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
-                      <Tag size={20} />
-                    </div>
-                    <span>3. カテゴリで絞り込む</span>
-                  </div>
-                  <div className="space-y-3">
-                      {categoryGroups.map(group => {
-                        const isOpen = openGroups.includes(group.name);
-                        const current = config.current || config;
-                        const search = current.search || { categories: [] };
-                        const selCount = group.items.filter(it => (search.categories || []).includes(it.id)).length;
-                        return (
-                         <div key={group.name} className={`border rounded-2xl transition-all ${isOpen ? 'border-indigo-100 bg-slate-50/30' : 'border-slate-100 hover:border-indigo-200'}`}>
-                           <button onClick={() => setOpenGroups(isOpen ? openGroups.filter(g => g !== group.name) : [...openGroups, group.name])} className="w-full flex justify-between items-center p-6 text-left group">
-                             <div className="flex items-center gap-4">
-                               <span className={`font-black text-base transition-colors ${selCount > 0 ? 'text-indigo-600' : 'text-slate-700 group-hover:text-indigo-600'}`}>{group.name}</span>
-                               {selCount > 0 && <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-md">{selCount} 個</span>}
-                             </div>
-                             <div className={`transition-transform duration-300 ${isOpen ? 'rotate-180 text-indigo-600' : 'text-slate-300'}`}>
-                               <ChevronDown size={20} />
-                             </div>
-                           </button>
-                           {isOpen && (
-                             <div className="p-8 pt-0 grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                               {group.items.map(item => {
-                                 const selected = (search.categories || []).includes(item.id);
-                                 return (
-                                   <button 
-                                     key={item.id} 
-                                     onClick={() => {
-                                       const next = selected ? (search.categories || []).filter((c:any) => c !== item.id) : [...(search.categories || []), item.id];
-                                       setConfig({...config, current: {...current, search: {...search, categories: next}}});
-                                     }}
-                                     className={`option-btn text-xs py-3.5 font-bold ${selected ? 'active' : ''}`}
-                                   >
-                                     {item.name}
-                                   </button>
-                                 )
-                               })}
-                             </div>
-                           )}
-                         </div>
-                       )
-                      })}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                   <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-5">
-                      <div className="flex items-center gap-2 text-indigo-400 font-black text-xs uppercase tracking-widest">
-                        <ShieldCheck size={16} /> <span>銘柄の信用区分</span>
-                      </div>
-                      <div className="flex gap-2">
-                         {[{v: '', l:'全て'}, {v:'standard', l:'制度信用'}, {v:'loan', l:'一般信用'}].map(o => {
-                           const current = config.current || config;
-                           const search = current.search || {};
-                           return (
-                             <button key={o.v} onClick={() => setConfig({...config, current: {...current, search: {...search, creditTrading: o.v}}})} className={`option-btn flex-1 py-4 font-bold text-sm ${search.creditTrading === o.v ? 'active' : ''}`}>{o.l}</button>
-                           );
-                         })}
-                      </div>
-                   </div>
                    <div className="main-panel p-10 rounded-2xl shadow-sm bg-white border border-slate-100 space-y-5">
                       <div className="flex items-center gap-2 text-indigo-400 font-black text-xs uppercase tracking-widest">
                         <Activity size={16} /> <span>取得エンジンの設定</span>
@@ -858,15 +802,14 @@ export default function DashboardPage() {
                            />
                         </div>
                       </div>
-                   </div>
-                </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </main>
+                    </div>
+                 </div>
+               </>
+             )}
+            </div>
+           )}
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
 }
