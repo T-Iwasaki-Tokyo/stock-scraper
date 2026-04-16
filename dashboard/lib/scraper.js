@@ -41,10 +41,8 @@ async function upsertStock(stock) {
     if (stock.chartUrl) data.chart_url = stock.chartUrl;
     
     // 移動平均線 (Kabutan)
-    if (stock.ma5_val !== undefined) data.ma5_val = stock.ma5_val;
-    if (stock.ma5_diff !== undefined) data.ma5_diff = stock.ma5_diff;
-    if (stock.ma25_val !== undefined) data.ma25_val = stock.ma25_val;
-    if (stock.ma25_diff !== undefined) data.ma25_diff = stock.ma25_diff;
+    if (stock.ma5 !== undefined) data.ma5 = stock.ma5;
+    if (stock.ma25 !== undefined) data.ma25 = stock.ma25;
 
     const { error } = await supabase
         .from('stocks')
@@ -300,37 +298,29 @@ export async function fetchStockDetail(code) {
         }
 
         // --- 3. 株探 (Kabutan) ---
-        let kabutanDetails = { ma5_val: 'N/A', ma5_diff: 'N/A', ma25_val: 'N/A', ma25_diff: 'N/A' };
+        let kabutanDetails = { ma5: 'N/A', ma25: 'N/A' };
         try {
             await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded' });
-            await page.waitForSelector('.stock_table', { timeout: 10000 });
-            
+            // .stock_table は無くなったため、テーブル要素から直接探す
             kabutanDetails = await page.evaluate(() => {
-                const rows = Array.from(document.querySelectorAll('tr'));
-                const extractMA = (label) => {
-                    const row = rows.find(r => r.innerText.includes(label));
-                    if (!row) return { val: 'N/A', diff: 'N/A' };
-                    const cells = Array.from(row.querySelectorAll('td'));
-                    if (cells.length < 2) return { val: 'N/A', diff: 'N/A' };
-                    
-                    const valText = cells[0].innerText.replace(/,/g, '').match(/[0-9.]+/);
-                    const diffText = cells[1].innerText.match(/[+-]?[0-9.]+/);
-                    
-                    return {
-                        val: valText ? valText[0] : 'N/A',
-                        diff: diffText ? diffText[0] : 'N/A'
-                    };
-                };
-
-                const ma5 = extractMA('5日線');
-                const ma25 = extractMA('25日線');
-                
-                return {
-                    ma5_val: ma5.val,
-                    ma5_diff: ma5.diff,
-                    ma25_val: ma25.val,
-                    ma25_diff: ma25.diff
-                };
+                const els = Array.from(document.querySelectorAll('table'));
+                let found = { ma5: 'N/A', ma25: 'N/A' };
+                for (const t of els) {
+                    if (t.innerText.includes('5日線') && t.innerText.includes('25日線')) {
+                        const lines = t.innerText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                        const labelLine = lines.findIndex(l => l.includes('5日線'));
+                        if (labelLine >= 0 && labelLine + 1 < lines.length) {
+                            const labels = lines[labelLine].split(/\s+/);
+                            const values = lines[labelLine + 1].split(/\s+/);
+                            const idx5 = labels.findIndex(l => l.includes('5日線'));
+                            const idx25 = labels.findIndex(l => l.includes('25日線'));
+                            if (idx5 >= 0 && values[idx5]) found.ma5 = values[idx5];
+                            if (idx25 >= 0 && values[idx25]) found.ma25 = values[idx25];
+                        }
+                        break;
+                    }
+                }
+                return found;
             });
         } catch (ke) {
             console.warn(`[Warn] Kabutan fetch failed for ${code}:`, ke.message);
