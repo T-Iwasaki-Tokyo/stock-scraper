@@ -42,7 +42,8 @@ async function upsertStock(stock) {
     if (stock.chartUrl) data.chart_url = stock.chartUrl;
     
     // 移動平均線 (Kabutan)
-    if (stock.ma5_val !== undefined) data.ma5_val = stock.ma5_val;
+    if (stock.ma5_diff !== undefined) data.ma5_diff = stock.ma5_diff;
+    if (stock.ma5_trend !== undefined) data.ma5_trend = stock.ma5_trend;
     if (stock.ma25_diff !== undefined) data.ma25_diff = stock.ma25_diff;
     if (stock.ma25_trend !== undefined) data.ma25_trend = stock.ma25_trend;
     
