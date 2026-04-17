@@ -364,37 +364,28 @@ export async function fetchStockDetail(code) {
                 const results = { ma5_val: null, ma5_diff: null, ma25_val: null, ma25_diff: null };
                 const allCells = Array.from(document.querySelectorAll('td, th'));
                 
-                const getMAData = (keyword) => {
-                    const nameCell = allCells.find(el => el.innerText.includes(keyword));
+                const getMADiff = (keyword) => {
+                    const nameCell = allCells.find(el => el.innerText.trim() === keyword);
                     if (!nameCell) return null;
+                    
                     const row = nameCell.parentElement;
                     const nextRow = row?.nextElementSibling;
                     if (!row || !nextRow) return null;
+                    
                     const index = Array.from(row.cells).indexOf(nameCell);
                     if (index === -1) return null;
+                    
                     const valCell = nextRow.cells[index];
-                    return valCell ? valCell.innerText.trim() : null;
+                    if (!valCell) return null;
+
+                    const text = valCell.innerText.trim();
+                    const m = text.match(/[+-]?[0-9.]+/);
+                    return m ? parseFloat(m[0]) : null;
                 };
 
-                const ma5Str = getMAData('5日線');
-                const ma25Str = getMAData('25日線');
-                const priceText = document.querySelector('.stock_price')?.innerText || '';
-                const price = parseFloat(priceText.replace(/,/g, ''));
-
-                if (ma5Str && price) {
-                    const ma5 = parseFloat(ma5Str.replace(/,/g, ''));
-                    if (ma5) {
-                        results.ma5_val = ma5;
-                        results.ma5_diff = parseFloat(((price - ma5) / ma5 * 100).toFixed(2));
-                    }
-                }
-                if (ma25Str && price) {
-                    const ma25 = parseFloat(ma25Str.replace(/,/g, ''));
-                    if (ma25) {
-                        results.ma25_val = ma25;
-                        results.ma25_diff = parseFloat(((price - ma25) / ma25 * 100).toFixed(2));
-                    }
-                }
+                results.ma5_diff = getMADiff('5日線');
+                results.ma25_diff = getMADiff('25日線');
+                
                 return results;
             });
         } catch (ke) {
