@@ -274,7 +274,7 @@ export async function fetchStockList(config) {
 export async function fetchStockDetail(code) {
     const browser = await getBrowser();
     const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0 Safari/537.36'
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0 Safari/120.0.0.0'
     });
     const page = await context.newPage();
 
@@ -285,18 +285,19 @@ export async function fetchStockDetail(code) {
         
         const yahooDetails = await page.evaluate(() => {
             const pickNumber = (text) => {
-                if (!text) return 'N/A';
+                if (!text || text === '---') return 'N/A';
                 const m = text.match(/[0-9,.]+/);
                 return m ? m[0].replace(/,/g, '') : 'N/A';
             };
             const getVal = (labelText) => {
-                const dts = Array.from(document.querySelectorAll('dt'));
-                const targetDt = dts.find(dt => dt.innerText.includes(labelText));
-                if (!targetDt) return 'N/A';
-                const dd = targetDt.nextElementSibling;
-                return dd ? dd.innerText : 'N/A';
+                const allCells = Array.from(document.querySelectorAll('dt, th'));
+                const target = allCells.find(el => el.innerText.includes(labelText));
+                if (!target) return 'N/A';
+                const valEl = target.nextElementSibling;
+                return valEl ? valEl.innerText : 'N/A';
             };
-            const priceEl = document.querySelector('[class*="PriceBoard__price"]');
+            // セレクタを強化
+            const priceEl = document.querySelector('[class*="PriceBoard__price"], ._3M-vTqfI, ._2S_1t3_Z, ._3rXWJK9P, ._1mD3hY0h');
             return {
                 price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
                 pbr: pickNumber(getVal('PBR')),
@@ -404,12 +405,14 @@ export async function fetchStockDetail(code) {
 
         // Supabase 更新
         await upsertStock(stockData);
-
-        await browser.close();
         return stockData;
+
     } catch (e) {
-        if (browser) await browser.close();
+        console.error(`[Error] Detail fetch failed for ${code}:`, e.message);
         throw e;
+    } finally {
+        // 重要: browser は閉じない（共有されているため）。context/page のみ閉じる。
+        await context.close();
     }
 }
 
