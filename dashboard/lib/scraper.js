@@ -358,21 +358,18 @@ export async function fetchStockDetail(code) {
         }
 
         // --- 3. 株探 (Kabutan) ---
-        let kabutanDetails = { ma5_val: null, ma5_diff: null, ma25_val: null, ma25_diff: null };
+        let kabutanDetails = { ma5_val: null, ma5_diff: null, ma5_trend: null, ma25_val: null, ma25_diff: null, ma25_trend: null };
         try {
             await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded' });
             kabutanDetails = await page.evaluate(() => {
-                const results = { ma5_val: null, ma5_diff: null, ma25_val: null, ma25_diff: null };
+                const results = { ma5_diff: null, ma5_trend: null, ma25_diff: null, ma25_trend: null };
                 const allCells = Array.from(document.querySelectorAll('td, th'));
                 
-                const getMADiff = (keyword) => {
+                const getMAData = (keyword) => {
                     const nameCell = allCells.find(el => el.innerText.trim() === keyword);
-                    if (!nameCell) return null;
+                    if (!nameCell) return { diff: null, trend: null };
                     
                     const row = nameCell.parentElement;
-                    const nextRow = row?.nextElementSibling;
-                    if (!row || !nextRow) return null;
-                    
                     const index = Array.from(row.cells).indexOf(nameCell);
                     if (index === -1) return null;
                     

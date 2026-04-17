@@ -545,11 +545,21 @@ export default function DashboardPage() {
                             {stock.yutaiYield && stock.yutaiYield !== 'N/A' ? `${stock.yutaiYield}%` : '-'}
                           </td>
                           <td className="text-right font-bold text-slate-500">{stock.pbr || '-'}</td>
-                          <td className={`text-right font-bold ${parseFloat(stock.ma5Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}`}>
-                            {stock.ma5Diff ? `${stock.ma5Diff}%` : '-'}
+                          <td className="text-right font-bold">
+                            <div className="flex flex-col items-end">
+                              <span className={parseFloat(stock.ma5Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}>
+                                {stock.ma5Diff ? `${stock.ma5Diff}%` : '-'}
+                              </span>
+                              {stock.ma5Trend && <span className="text-[10px] text-slate-400 font-normal tracking-tighter">{stock.ma5Trend}</span>}
+                            </div>
                           </td>
-                          <td className={`text-right pr-6 font-bold ${parseFloat(stock.ma25Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}`}>
-                            {stock.ma25Diff ? `${stock.ma25Diff}%` : '-'}
+                          <td className="text-right pr-6 font-bold">
+                            <div className="flex flex-col items-end">
+                              <span className={parseFloat(stock.ma25Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}>
+                                {stock.ma25Diff ? `${stock.ma25Diff}%` : '-'}
+                              </span>
+                              {stock.ma25Trend && <span className="text-[10px] text-slate-400 font-normal tracking-tighter">{stock.ma25Trend}</span>}
+                            </div>
                           </td>
                           <td className="text-right pr-6">
                             <div className="flex justify-end gap-1">
