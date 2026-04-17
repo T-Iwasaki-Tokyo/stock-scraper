@@ -216,8 +216,8 @@ export async function fetchStockList(config) {
                     const span = p.querySelector('.tousi_price');
                     if (!span) return 'N/A';
                     const val = span.innerText.trim();
-                    // 数値と全角・半角の％を取得
-                    const match = val.match(/[0-9.]+[%％]?/);
+                    // 数値のみを取得（％記号は除外）
+                    const match = val.match(/[0-9.]+/);
                     return match ? match[0] : 'N/A';
                 };
 
@@ -226,9 +226,9 @@ export async function fetchStockList(config) {
                         const el = item.querySelector(sel);
                         if (el) {
                             const text = el.innerText.trim();
-                            if (/[0-9.]+/.test(text)) {
-                                const m = text.match(/[0-9.]+[%％]?/);
-                                return m ? m[0] : null;
+                            const m = text.match(/[0-9.]+/);
+                            if (m) {
+                                return m[0];
                             }
                         }
                     }
