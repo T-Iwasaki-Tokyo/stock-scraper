@@ -293,8 +293,13 @@ export async function fetchStockDetail(code) {
 
     try {
         // --- 1. Yahoo Finance ---
-        // 待機条件を 'load' に強化
-        await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'load', timeout: 30000 });
+        // domcontentloaded で早く入り、必要なデータ要素が出るまで待つ
+        await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        // 株価とラベル要素(dt/th)の両方が出るのを待つ
+        await Promise.all([
+            page.waitForSelector('[class*="PriceBoard__price"], ._3M-vTqfI', { timeout: 15000 }).catch(() => {}),
+            page.waitForSelector('dt, th', { timeout: 10000 }).catch(() => {})
+        ]);
         
         const yahooDetails = await page.evaluate(() => {
             const pickNumber = (text) => {
@@ -387,9 +392,9 @@ export async function fetchStockDetail(code) {
         // --- 3. 株探 (Kabutan) ---
         let kabutanDetails = { ma5_val: null, ma5_diff: null, ma5_trend: null, ma25_val: null, ma25_diff: null, ma25_trend: null };
         try {
-            // タイムアウト回避のため 'domcontentloaded' に戻し、bodyの出現を待つ
+            // domcontentloaded で入り、テーブルセル(td/th)が出るまで待つ
             await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-            await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
+            await page.waitForSelector('td, th', { timeout: 10000 }).catch(() => {});
             
             kabutanDetails = await page.evaluate(() => {
                 const results = { ma5_diff: null, ma5_trend: null, ma25_diff: null, ma25_trend: null };
