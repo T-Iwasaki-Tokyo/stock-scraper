@@ -387,8 +387,9 @@ export async function fetchStockDetail(code) {
         // --- 3. 株探 (Kabutan) ---
         let kabutanDetails = { ma5_val: null, ma5_diff: null, ma5_trend: null, ma25_val: null, ma25_diff: null, ma25_trend: null };
         try {
-            // 待機条件を 'load' に強化
-            await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'load', timeout: 30000 });
+            // タイムアウト回避のため 'domcontentloaded' に戻し、bodyの出現を待つ
+            await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+            await page.waitForSelector('body', { timeout: 10000 }).catch(() => {});
             
             kabutanDetails = await page.evaluate(() => {
                 const results = { ma5_diff: null, ma5_trend: null, ma25_diff: null, ma25_trend: null };
