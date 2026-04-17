@@ -278,6 +278,14 @@ export async function fetchStockDetail(code) {
     });
     const page = await context.newPage();
 
+    // ブラウザ内のコンソール出力を Node.js の標準出力に転送
+    page.on('console', (msg) => {
+        const text = msg.text();
+        if (text.includes('[Debug]')) {
+            console.log(text);
+        }
+    });
+
     try {
         // --- 1. Yahoo Finance ---
         await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'domcontentloaded' });
