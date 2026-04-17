@@ -483,6 +483,12 @@ export default function DashboardPage() {
                           {sortKey === 'dividendYield' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
+                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('dividendPerShare')}>
+                        <div className="flex items-center justify-end gap-1">
+                          1株配当
+                          {sortKey === 'dividendPerShare' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
                       <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('yutaiYield')}>
                         <div className="flex items-center justify-end gap-1">
                           優待利回り
@@ -493,6 +499,11 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-end gap-1">
                           PBR
                           {sortKey === 'pbr' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-24 text-right pr-2">
+                        <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
+                          年初来<br/>高安
                         </div>
                       </th>
                       <th className="w-28 text-right underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('ma5Diff')}>
@@ -541,10 +552,19 @@ export default function DashboardPage() {
                           <td className="text-right font-bold text-slate-500">
                             {stock.dividendYield && stock.dividendYield !== 'N/A' ? `${stock.dividendYield}%` : '-'}
                           </td>
+                          <td className="text-right font-bold text-slate-400 text-xs">
+                            {stock.dividendPerShare ? `${stock.dividendPerShare}円` : '-'}
+                          </td>
                           <td className="text-right font-bold text-slate-500">
                             {stock.yutaiYield && stock.yutaiYield !== 'N/A' ? `${stock.yutaiYield}%` : '-'}
                           </td>
                           <td className="text-right font-bold text-slate-500">{stock.pbr || '-'}</td>
+                          <td className="text-right pr-2">
+                            <div className="flex flex-col items-end leading-tight text-[10px] font-mono">
+                              <span className="text-rose-400">H: {stock.yearlyHigh || '-'}</span>
+                              <span className="text-emerald-500">L: {stock.yearlyLow || '-'}</span>
+                            </div>
+                          </td>
                           <td className="text-right font-bold">
                             <div className="flex flex-col items-end">
                               <span className={parseFloat(stock.ma5Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}>

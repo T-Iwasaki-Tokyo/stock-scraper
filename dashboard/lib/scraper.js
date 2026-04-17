@@ -43,11 +43,13 @@ async function upsertStock(stock) {
     
     // 移動平均線 (Kabutan)
     if (stock.ma5_val !== undefined) data.ma5_val = stock.ma5_val;
-    if (stock.ma5_diff !== undefined) data.ma5_diff = stock.ma5_diff;
-    if (stock.ma5_trend !== undefined) data.ma5_trend = stock.ma5_trend;
-    if (stock.ma25_val !== undefined) data.ma25_val = stock.ma25_val;
     if (stock.ma25_diff !== undefined) data.ma25_diff = stock.ma25_diff;
     if (stock.ma25_trend !== undefined) data.ma25_trend = stock.ma25_trend;
+    
+    // Yahoo 追加項目
+    if (stock.dividend_per_share !== undefined) data.dividend_per_share = stock.dividend_per_share !== 'N/A' ? parseFloat(stock.dividend_per_share) : null;
+    if (stock.yearly_high !== undefined) data.yearly_high = stock.yearly_high !== 'N/A' ? parseFloat(stock.yearly_high) : null;
+    if (stock.yearly_low !== undefined) data.yearly_low = stock.yearly_low !== 'N/A' ? parseFloat(stock.yearly_low) : null;
 
     const { error } = await supabase
         .from('stocks')
@@ -331,7 +333,10 @@ export async function fetchStockDetail(code) {
             return {
                 price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
                 pbr: pickNumber(getVal('PBR')),
-                dividendYield: pickNumber(getVal('配当利回り'))
+                dividendYield: pickNumber(getVal('配当利回り')),
+                dividend_per_share: pickNumber(getVal('1株配当（予想）')),
+                yearly_high: pickNumber(getVal('年初来高値')),
+                yearly_low: pickNumber(getVal('年初来安値'))
             };
         });
 
