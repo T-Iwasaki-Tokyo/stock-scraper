@@ -557,13 +557,20 @@ if (process.argv[1]?.endsWith('scraper.js')) {
 
             console.log(`[3/4] ${list.length} 件の銘柄を処理対象として認識しました`);
             
+            const retryList = [];
+            
+            // --- Phase 3: 1周目のメイン巡回 ---
             for (let i = 0; i < list.length; i++) {
                 const s = list[i];
                 console.log(`      (${i + 1}/${list.length}) ${s.name} (${s.code}) を詳細取得中...`);
                 try {
-                    await fetchStockDetail(s.code);
+                    const result = await fetchStockDetail(s.code);
+                    if (result.price === 'N/A') {
+                        retryList.push(s);
+                    }
                 } catch (e) {
                     console.error(`      [Warn] ${s.code} の取得に失敗しました:`, e.message);
+                    retryList.push(s);
                 }
                 
                 if (i < list.length - 1) {
@@ -573,12 +580,35 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                     await new Promise(r => setTimeout(r, waitMs));
                 }
             }
+
+            // --- Phase 4: 再試行フェーズ (失敗銘柄のみ) ---
+            if (retryList.length > 0) {
+                console.log('==================================================');
+                console.log(`[Phase 4] ${retryList.length} 件の取得失敗銘柄を再試行します`);
+                console.log('5分待機してサーバー側の制限解除を待ちます...');
+                console.log('==================================================');
+                await new Promise(resolve => setTimeout(resolve, 300000)); // 5分待機
+
+                for (let i = 0; i < retryList.length; i++) {
+                    const s = retryList[i];
+                    console.log(`      [Retry] (${i + 1}/${retryList.length}) ${s.name} (${s.code}) を再取得中...`);
+                    try {
+                        await fetchStockDetail(s.code);
+                    } catch (e) {
+                        console.error(`      [Retry Error] ${s.code} の再取得に失敗しました:`, e.message);
+                    }
+                    if (i < retryList.length - 1) {
+                        console.log(`      -> 次の銘柄まで 1 分待機します...`);
+                        await new Promise(resolve => setTimeout(resolve, 60000));
+                    }
+                }
+            }
             
             console.log('==================================================');
-            console.log('[4/4] すべての処理が完了しました');
-            console.log(`[End] 終了時刻: ${new Date().toLocaleString('ja-JP')}`);
+            console.log('[End] すべての処理が完了しました');
+            console.log(`[Time] ${new Date().toLocaleString('ja-JP')}`);
             console.log('==================================================');
-            process.exit(0);
+
         } catch (globalError) {
             console.error('==================================================');
             console.error('[Critical Error] 実行中に致命的なエラーが発生しました');
