@@ -299,7 +299,7 @@ export async function fetchStockDetail(code, name) {
         // --- 1. Yahoo Finance (Retry導入) ---
         let yahooDetails = { price: 'N/A', pbr: 'N/A', dividendYield: 'N/A', dividend_per_share: 'N/A', yearly_high: 'N/A', yearly_low: 'N/A' };
         let attempts = 0;
-        const maxAttempts = 2;
+        const maxAttempts = 5;
 
         while (attempts < maxAttempts) {
             try {
@@ -383,65 +383,79 @@ export async function fetchStockDetail(code, name) {
         */
         const foundDetails = {};
 
-        // --- 3. 株探 (Kabutan) ---
+        // --- 3. 株探 (Kabutan) (Retry導入) ---
         let kabutanDetails = { ma5_val: null, ma5_diff: null, ma5_trend: null, ma25_val: null, ma25_diff: null, ma25_trend: null };
-        try {
-            // domcontentloaded で入り、テーブルセル(td/th)が出るまで待つ
-            await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-            await page.waitForSelector('td, th', { timeout: 10000 }).catch(() => {});
-            
-            kabutanDetails = await page.evaluate(() => {
-                const results = { ma5_diff: null, ma5_trend: null, ma25_diff: null, ma25_trend: null };
-                const allCells = Array.from(document.querySelectorAll('td, th'));
-                
-                console.log(`[Debug] Analyzing Kabutan MA table... (Total cells: ${allCells.length})`);
+        let kAttempts = 0;
+        const maxKAttempts = 5;
 
-                const getMAData = (keyword) => {
-                    const nameCell = allCells.find(el => el.innerText.trim() === keyword);
-                    if (!nameCell) {
-                        console.log(`[Debug] "${keyword}" label not found.`);
-                        return { diff: null, trend: null };
-                    }
+        while (kAttempts < maxKAttempts) {
+            try {
+                kAttempts++;
+                if (kAttempts > 1) {
+                    console.log(`      [Retry] 株探 再試行中 (${kAttempts}/${maxKAttempts})...`);
+                    await page.waitForTimeout(3000);
+                }
+
+                // domcontentloaded で入り、テーブルセル(td/th)が出るまで待つ
+                await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+                await page.waitForSelector('td, th', { timeout: 10000 }).catch(() => {});
+                
+                kabutanDetails = await page.evaluate(() => {
+                    const results = { ma5_diff: null, ma5_trend: null, ma25_diff: null, ma25_trend: null };
+                    const allCells = Array.from(document.querySelectorAll('td, th'));
                     
-                    const row = nameCell.parentElement;
-                    const index = Array.from(row.cells).indexOf(nameCell);
-                    if (index === -1) return { diff: null, trend: null };
+                    console.log(`[Debug] Analyzing Kabutan MA table... (Total cells: ${allCells.length})`);
 
-                    // 1つ下の行から乖離率（数値）を取得
-                    const nextRow = row.nextElementSibling;
-                    let diff = null;
-                    if (nextRow && nextRow.cells[index]) {
-                        const rawText = nextRow.cells[index].innerText.trim();
-                        const m = rawText.match(/[+-]?[0-9.]+/);
-                        if (m) diff = parseFloat(m[0]);
-                        console.log(`[Debug] ${keyword} Value Row: "${rawText}", Parsed: ${diff}`);
-                    }
-
-                    // 1つ上の行からトレンド（画像alt）を取得
-                    const prevRow = row.previousElementSibling;
-                    let trend = null;
-                    if (prevRow && prevRow.cells[index]) {
-                        const img = prevRow.cells[index].querySelector('img');
-                        if (img) {
-                            trend = img.alt || null;
-                            console.log(`[Debug] ${keyword} Trend Row Alt: "${trend}"`);
+                    const getMAData = (keyword) => {
+                        const nameCell = allCells.find(el => el.innerText.trim() === keyword);
+                        if (!nameCell) {
+                            console.log(`[Debug] "${keyword}" label not found.`);
+                            return { diff: null, trend: null };
                         }
-                    }
+                        
+                        const row = nameCell.parentElement;
+                        const index = Array.from(row.cells).indexOf(nameCell);
+                        if (index === -1) return { diff: null, trend: null };
 
-                    return { diff, trend };
-                };
+                        // 1つ下の行から乖離率（数値）を取得
+                        const nextRow = row.nextElementSibling;
+                        let diff = null;
+                        if (nextRow && nextRow.cells[index]) {
+                            const rawText = nextRow.cells[index].innerText.trim();
+                            const m = rawText.match(/[+-]?[0-9.]+/);
+                            if (m) diff = parseFloat(m[0]);
+                            console.log(`[Debug] ${keyword} Value Row: "${rawText}", Parsed: ${diff}`);
+                        }
 
-                const ma5 = getMAData('5日線');
-                const ma25 = getMAData('25日線');
-                results.ma5_diff = ma5.diff;
-                results.ma5_trend = ma5.trend;
-                results.ma25_diff = ma25.diff;
-                results.ma25_trend = ma25.trend;
-                
-                return results;
-            });
-        } catch (ke) {
-            console.warn(`[Warn] Kabutan fetch failed for ${code}:`, ke.message);
+                        // 1つ上の行からトレンド（画像alt）を取得
+                        const prevRow = row.previousElementSibling;
+                        let trend = null;
+                        if (prevRow && prevRow.cells[index]) {
+                            const img = prevRow.cells[index].querySelector('img');
+                            if (img) {
+                                trend = img.alt || null;
+                                console.log(`[Debug] ${keyword} Trend Row Alt: "${trend}"`);
+                            }
+                        }
+
+                        return { diff, trend };
+                    };
+
+                    const ma5 = getMAData('5日線');
+                    const ma25 = getMAData('25日線');
+                    results.ma5_diff = ma5.diff;
+                    results.ma5_trend = ma5.trend;
+                    results.ma25_diff = ma25.diff;
+                    results.ma25_trend = ma25.trend;
+                    
+                    return results;
+                });
+
+                if (kabutanDetails.ma5_diff !== null) break; // 取得成功（最低限ma5_diffがあれば成功とみなす）
+
+            } catch (ke) {
+                console.warn(`      [Warn] Kabutan fetch attempt ${kAttempts} failed for ${code}:`, ke.message);
+            }
         }
 
         const stockData = {
@@ -452,7 +466,7 @@ export async function fetchStockDetail(code, name) {
             ...kabutanDetails,
             yahooUrl: `https://finance.yahoo.co.jp/quote/${code}.T`,
             chartUrl: `https://finance.yahoo.co.jp/quote/${code}.T/chart`,
-            minkabuUrl: `https://minkabu.jp/stock/${code}`,
+            minkabu_url: `https://minkabu.jp/stock/${code}`, // casing fixed to match upsertStock
             status: 'complete'
         };
 
@@ -572,23 +586,33 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 }
             }
 
-            // --- Phase 4: 再試行フェーズ (失敗銘柄のみ) ---
-            if (retryList.length > 0) {
+            // --- Phase 4: 再試行フェーズ (失敗銘柄のみ, 最大5回まで) ---
+            let retryRound = 0;
+            const maxRetryRounds = 5;
+            while (retryList.length > 0 && retryRound < maxRetryRounds) {
+                retryRound++;
                 console.log('==================================================');
-                console.log(`[Phase 4] ${retryList.length} 件の取得失敗銘柄を再試行します`);
+                console.log(`[Phase 4] 再試行ラウンド ${retryRound}/${maxRetryRounds}: ${retryList.length} 件を再試行します`);
                 console.log('5分待機してサーバー側の制限解除を待ちます...');
                 console.log('==================================================');
                 await new Promise(resolve => setTimeout(resolve, 300000)); // 5分待機
 
-                for (let i = 0; i < retryList.length; i++) {
-                    const s = retryList[i];
-                    console.log(`      [Retry] (${i + 1}/${retryList.length}) ${s.name} (${s.code}) を再取得中...`);
+                const currentRoundTargets = [...retryList];
+                retryList.length = 0; // 次のラウンド用に一旦クリア
+
+                for (let i = 0; i < currentRoundTargets.length; i++) {
+                    const s = currentRoundTargets[i];
+                    console.log(`      [Retry R${retryRound}] (${i + 1}/${currentRoundTargets.length}) ${s.name} (${s.code}) を再取得中...`);
                     try {
-                        await fetchStockDetail(s.code, s.name);
+                        const result = await fetchStockDetail(s.code, s.name);
+                        if (result.price === 'N/A') {
+                            retryList.push(s);
+                        }
                     } catch (e) {
-                        console.error(`      [Retry Error] ${s.code} の再取得に失敗しました:`, e.message);
+                        console.error(`      [Retry Error R${retryRound}] ${s.code} の再取得に失敗しました:`, e.message);
+                        retryList.push(s);
                     }
-                    if (i < retryList.length - 1) {
+                    if (i < currentRoundTargets.length - 1) {
                         console.log(`      -> 次の銘柄まで 1 分待機します...`);
                         await new Promise(resolve => setTimeout(resolve, 60000));
                     }
