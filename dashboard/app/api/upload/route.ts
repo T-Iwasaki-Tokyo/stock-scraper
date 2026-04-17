@@ -20,23 +20,28 @@ export async function POST(request: Request) {
         // header: 1 は 配列の配列形式で取得
         const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
         
-        const stocks = data
+        const rawStocks = data
             .filter(row => row[0]) // コードがある行のみ
             .map(row => ({
                 code: row[0].toString().trim(),
                 name: row[1]?.toString().trim() || '名称未設定'
             }));
 
-        if (stocks.length === 0) {
+        if (rawStocks.length === 0) {
             return NextResponse.json({ error: '有効な銘柄コードが見つかりませんでした' }, { status: 400 });
         }
+
+        // 重複除去 (同じコードがあれば後のものを優先)
+        const uniqueStocksMap = new Map();
+        rawStocks.forEach(s => uniqueStocksMap.set(s.code, s));
+        const stocks = Array.from(uniqueStocksMap.values());
 
         // 既存の target_stocks をクリアして新しく追加
         await supabase.from('target_stocks').delete().neq('code', '');
         
         const { error: insertError } = await supabase
             .from('target_stocks')
-            .insert(stocks);
+            .upsert(stocks);
 
         if (insertError) throw insertError;
 
