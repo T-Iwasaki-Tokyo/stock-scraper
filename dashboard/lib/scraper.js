@@ -51,6 +51,7 @@ async function upsertStock(stock) {
     if (stock.dividend_per_share !== undefined) data.dividend_per_share = stock.dividend_per_share !== 'N/A' ? parseFloat(stock.dividend_per_share) : null;
     if (stock.yearly_high !== undefined) data.yearly_high = stock.yearly_high !== 'N/A' ? parseFloat(stock.yearly_high) : null;
     if (stock.yearly_low !== undefined) data.yearly_low = stock.yearly_low !== 'N/A' ? parseFloat(stock.yearly_low) : null;
+    if (stock.minkabu_url) data.minkabu_url = stock.minkabu_url;
 
     const { error } = await supabase
         .from('stocks')
@@ -371,59 +372,16 @@ export async function fetchStockDetail(code) {
             }
         }
 
-        const foundDetails = {};
-
-        // --- 2. 楽しい株主優待＆配当 (利回り補完) ---
+        // --- 2. 楽しい株主優待＆配当 (スキップが指示されたため削除) ---
+        /*
         try {
             await page.goto(`https://www.kabuyutai.com/tool/index.php?code=${code}&btn=%E3%81%93%E3%81%AE%E6%9D%A1%E4%BB%B6%E3%81%A7%E6%A4%9C%E7%B4%A2%E3%81%99%E3%82%8B`, { waitUntil: 'load' });
-            await page.waitForSelector('.table_tr', { timeout: 10000 }).catch(() => {});
-            
-            const detailYields = await page.evaluate(() => {
-                const item = document.querySelector('.table_tr');
-                if (!item) return null;
-
-                const pickYield = (labelText) => {
-                    const regex = new RegExp('【\\s*' + labelText + '\\s*】');
-                    const p = Array.from(item.querySelectorAll('p')).find(el => regex.test(el.innerText));
-                    if (!p) return null;
-                    const span = p.querySelector('.tousi_price');
-                    if (!span) return null;
-                    const val = span.innerText.trim();
-                    const match = val.match(/[0-9.]+[%％]?/);
-                    return match ? match[0] : null;
-                };
-
-                const getVal = (selectors) => {
-                    for (const sel of selectors) {
-                        const el = item.querySelector(sel);
-                        if (el) {
-                            const text = el.innerText.trim();
-                            if (/[0-9.]+/.test(text)) {
-                                const m = text.match(/[0-9.]+[%％]?/);
-                                return m ? m[0] : null;
-                            }
-                        }
-                    }
-                    return null;
-                };
-
-                return {
-                    totalYield: getVal(['[data-js="ty"]', '.rima_num']),
-                    yutaiYield: pickYield('優待利回り'),
-                    yutai_desc: item.querySelector('.yutai_content_text')?.innerText.trim()
-                };
-            });
-            
-            if (detailYields) {
-                // % 記号などを除去して数値文字列として保存
-                const cleanYield = (val) => val ? val.replace(/[%％]/g, '').trim() : null;
-                if (detailYields.totalYield) foundDetails.totalYield = cleanYield(detailYields.totalYield);
-                if (detailYields.yutaiYield) foundDetails.yutaiYield = cleanYield(detailYields.yutaiYield);
-                if (detailYields.yutai_desc) foundDetails.yutai_desc = detailYields.yutai_desc;
-            }
+            ...
         } catch (ye) {
             console.warn(`[Warn] Kabuyutai fetch failed for ${code}:`, ye.message);
         }
+        */
+        const foundDetails = {};
 
         // --- 3. 株探 (Kabutan) ---
         let kabutanDetails = { ma5_val: null, ma5_diff: null, ma5_trend: null, ma25_val: null, ma25_diff: null, ma25_trend: null };
@@ -493,6 +451,7 @@ export async function fetchStockDetail(code) {
             ...kabutanDetails,
             yahooUrl: `https://finance.yahoo.co.jp/quote/${code}.T`,
             chartUrl: `https://finance.yahoo.co.jp/quote/${code}.T/chart`,
+            minkabuUrl: `https://minkabu.jp/stock/${code}`,
             status: 'complete'
         };
 
@@ -524,14 +483,32 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 .from('configs')
                 .select('*')
                 .eq('is_current', true)
-                .single();
+                .order('created_at', { ascending: false })
+                .limit(1);
 
             if (configError) {
                 console.error('[Error] 設定の取得に失敗しました:', configError.message);
                 process.exit(1);
             }
 
-            const config = configRows;
+            if (!configRows || configRows.length === 0) {
+                console.error('[Error] 現在の設定が見つかりません。ダッシュボードで設定を保存してください。');
+                process.exit(1);
+            }
+
+            const config = configRows[0];
+
+            // ストレージのクリーンアップ (過去のスクリーンショットを消去)
+            try {
+                const { data: files } = await supabase.storage.from('screenshots').list();
+                if (files && files.length > 0) {
+                    const names = files.map(f => f.name);
+                    await supabase.storage.from('screenshots').remove(names);
+                    console.log(`[Setup] ストレージから ${names.length} 枚の古いスクリーンショットを削除しました`);
+                }
+            } catch (err) {
+                console.warn('[Setup] ストレージのクリーンアップに失敗しました（継続します）:', err.message);
+            }
             let list = [];
 
             if (config.mode === 'file') {

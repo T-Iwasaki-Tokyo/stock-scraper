@@ -603,7 +603,12 @@ export default function DashboardPage() {
                           </td>
                           <td className="text-right pr-6">
                             <div className="flex justify-end gap-1">
-                              <a href={`https://kabutan.jp/stock/chart?code=${stock.code}`} target="_blank" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-all"><ExternalLink size={14} /></a>
+                              {stock.minkabuUrl && (
+                                <a href={stock.minkabuUrl} target="_blank" title="みんかぶ" className="p-2 text-slate-300 hover:text-emerald-600 hover:bg-slate-50 rounded-lg transition-all">
+                                  <span className="text-[10px] font-black">M</span>
+                                </a>
+                              )}
+                              <a href={`https://kabutan.jp/stock/chart?code=${stock.code}`} target="_blank" title="株探チャート" className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-all"><ExternalLink size={14} /></a>
                             </div>
                           </td>
                         </tr>

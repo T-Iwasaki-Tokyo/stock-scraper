@@ -36,6 +36,7 @@ export async function GET() {
             status: s.status,
             yahooUrl: s.yahoo_url,
             chartUrl: s.chart_url,
+            minkabuUrl: s.minkabu_url,
             timestamp: s.updated_at ? new Date(s.updated_at).toLocaleString('ja-JP') : null
         }));
 
