@@ -311,15 +311,20 @@ export async function fetchStockDetail(code) {
             };
             const getVal = (labelText) => {
                 const allCells = Array.from(document.querySelectorAll('dt, th'));
-                console.log(`[Debug] Yahoo: Searching for "${labelText}" among ${allCells.length} cells.`);
                 const target = allCells.find(el => el.innerText.includes(labelText));
                 if (!target) {
-                    console.log(`[Debug] Yahoo: "${labelText}" label NOT found.`);
+                    const sample = allCells.slice(0, 15).map(el => el.innerText.trim()).filter(t => t).join(' | ');
+                    console.log(`[Debug] Yahoo: "${labelText}" NOT found. Available (first 15): ${sample}`);
                     return 'N/A';
                 }
                 const valEl = target.nextElementSibling;
-                const valText = valEl ? valEl.innerText : 'N/A';
-                console.log(`[Debug] Yahoo: "${labelText}" found. Value: "${valText}"`);
+                if (!valEl) return 'N/A';
+                
+                // 特定のクラス（StyledNumber__valueなど）を持つ子要素があればそれを優先
+                const specificVal = valEl.querySelector('[class*="value"], [class*="Number__value"]');
+                const valText = (specificVal || valEl).innerText.trim();
+                
+                console.log(`[Debug] Yahoo: "${labelText}" found. Value text: "${valText}"`);
                 return valText;
             };
             // 株価セレクタを強化
@@ -334,7 +339,7 @@ export async function fetchStockDetail(code) {
                 price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
                 pbr: pickNumber(getVal('PBR')),
                 dividendYield: pickNumber(getVal('配当利回り')),
-                dividend_per_share: pickNumber(getVal('1株配当（予想）')),
+                dividend_per_share: pickNumber(getVal('1株配当')),
                 yearly_high: pickNumber(getVal('年初来高値')),
                 yearly_low: pickNumber(getVal('年初来安値'))
             };

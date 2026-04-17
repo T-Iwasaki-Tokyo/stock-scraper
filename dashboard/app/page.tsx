@@ -242,16 +242,37 @@ export default function DashboardPage() {
   };
 
   const handleRunScraper = async () => {
-    alert("【お知らせ】\n\n株主優待の検索処理は、現在クラウド環境（GitHub Actions）で全自動で実行されるようにアップグレードされています。\nそのため、この画面からサーバーに負荷をかける手動実行はできません。\n\n最新データを直ちに取得したい場合は、GitHubレポジトリの「Actions」タブから手動で実行（Run workflow）してください。\n（実行中は、この画面を開いたままにしておくと自動で進捗が更新されます）");
-    fetchResults(); // 更新用
+    if (isRunning) return;
+    
+    // UIのステータスを即座に更新（実際のアクションはGitHub側で非同期に動く）
+    setStatus({ ...status, phase: 'searching', message: 'GitHub Actions を起動中...' });
+    setIsRunning(true);
+
+    try {
+      const res = await fetch('/api/scrape/trigger', { method: 'POST' });
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert("✅ GitHub Actions を起動しました！\n\n数分以内にデータの更新が始まります。このまま画面を開いて待機してください。");
+        // 10秒後に初期フェッチを試みる
+        setTimeout(fetchResults, 10000);
+      } else {
+        throw new Error(data.error || '起動に失敗しました');
+      }
+    } catch (e: any) {
+      alert(`❌ エラー: ${e.message}\n\nVercelの環境変数 GITHUB_ACCESS_TOKEN が正しく設定されているか確認してください。`);
+      setIsRunning(false);
+      setStatus({ ...status, phase: 'idle', message: '待機中' });
+    }
   };
 
   const downloadCSV = () => {
     if (results.length === 0) return;
-    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '優待利回り', 'PBR', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
+    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
     const rows = results.map(s => [
-      s.code, s.name, s.price, s.totalYield, s.dividendYield, s.yutaiYield, s.pbr, 
-      s.ma5_val || '-', s.ma5_diff || '-', s.ma25_val || '-', s.ma25_diff || '-',
+      s.code, s.name, s.price, s.totalYield, s.dividendYield, s.dividendPerShare || '-', s.yutaiYield, s.pbr, 
+      s.yearlyHigh || '-', s.yearlyLow || '-',
+      s.ma5_val || '-', s.ma5Diff || '-', s.ma25_val || '-', s.ma25Diff || '-',
       s.timestamp || '-', s.yahooUrl
     ]);
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
