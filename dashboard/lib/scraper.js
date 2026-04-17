@@ -295,56 +295,81 @@ export async function fetchStockDetail(code) {
     });
 
     try {
-        // --- 1. Yahoo Finance ---
-        // domcontentloaded で早く入り、必要なデータ要素が出るまで待つ
-        await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-        // 株価とラベル要素(dt/th)の両方が出るのを待つ
-        await Promise.all([
-            page.waitForSelector('[class*="PriceBoard__price"], ._3M-vTqfI', { timeout: 15000 }).catch(() => {}),
-            page.waitForSelector('dt, th', { timeout: 10000 }).catch(() => {})
-        ]);
-        
-        const yahooDetails = await page.evaluate(() => {
-            const pickNumber = (text) => {
-                if (!text || text === '---') return 'N/A';
-                const m = text.match(/[0-9,.]+/);
-                return m ? m[0].replace(/,/g, '') : 'N/A';
-            };
-            const getVal = (labelText) => {
-                const allCells = Array.from(document.querySelectorAll('dt, th'));
-                const target = allCells.find(el => el.innerText.includes(labelText));
-                if (!target) {
-                    const sample = allCells.slice(0, 15).map(el => el.innerText.trim()).filter(t => t).join(' | ');
-                    console.log(`[Debug] Yahoo: "${labelText}" NOT found. Available (first 15): ${sample}`);
-                    return 'N/A';
-                }
-                const valEl = target.nextElementSibling;
-                if (!valEl) return 'N/A';
-                
-                // 特定のクラス（StyledNumber__valueなど）を持つ子要素があればそれを優先
-                const specificVal = valEl.querySelector('[class*="value"], [class*="Number__value"]');
-                const valText = (specificVal || valEl).innerText.trim();
-                
-                console.log(`[Debug] Yahoo: "${labelText}" found. Value text: "${valText}"`);
-                return valText;
-            };
-            // 株価セレクタを強化
-            const priceEl = document.querySelector('[class*="PriceBoard__price"], ._3M-vTqfI, ._2S_1t3_Z, ._3rXWJK9P, ._1mD3hY0h');
-            if (priceEl) {
-                console.log(`[Debug] Yahoo: Price element found. Text: "${priceEl.innerText}"`);
-            } else {
-                console.log(`[Debug] Yahoo: Price element NOT found.`);
-            }
+        // --- 1. Yahoo Finance (Retry導入) ---
+        let yahooDetails = { price: 'N/A', pbr: 'N/A', dividendYield: 'N/A', dividend_per_share: 'N/A', yearly_high: 'N/A', yearly_low: 'N/A' };
+        let attempts = 0;
+        const maxAttempts = 2;
 
-            return {
-                price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
-                pbr: pickNumber(getVal('PBR')),
-                dividendYield: pickNumber(getVal('配当利回り')),
-                dividend_per_share: pickNumber(getVal('1株配当')),
-                yearly_high: pickNumber(getVal('年初来高値')),
-                yearly_low: pickNumber(getVal('年初来安値'))
-            };
-        });
+        while (attempts < maxAttempts) {
+            try {
+                attempts++;
+                if (attempts > 1) {
+                    console.log(`      [Retry] Yahoo Finance 再試行中 (${attempts}/${maxAttempts})...`);
+                    await page.waitForTimeout(3000);
+                }
+                
+                await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                // データの出現を確実にするため待機
+                await Promise.all([
+                    page.waitForSelector('[class*="PriceBoard__price"], ._3M-vTqfI', { timeout: 15000 }).catch(() => {}),
+                    page.waitForSelector('dt, th', { timeout: 10000 }).catch(() => {})
+                ]);
+
+                yahooDetails = await page.evaluate(() => {
+                    const pickNumber = (text) => {
+                        if (!text || text === '---') return 'N/A';
+                        const m = text.match(/[0-9,.]+/);
+                        return m ? m[0].replace(/,/g, '') : 'N/A';
+                    };
+                    const getVal = (labelText) => {
+                        const allCells = Array.from(document.querySelectorAll('dt, th'));
+                        const target = allCells.find(el => el.innerText.includes(labelText));
+                        if (!target) {
+                            const sample = allCells.slice(0, 15).map(el => el.innerText.trim()).filter(t => t).join(' | ');
+                            console.log(`[Debug] Yahoo: "${labelText}" NOT found. Available (first 15): ${sample}`);
+                            return 'N/A';
+                        }
+                        const valEl = target.nextElementSibling;
+                        if (!valEl) return 'N/A';
+                        const specificVal = valEl.querySelector('[class*="value"], [class*="Number__value"]');
+                        const valText = (specificVal || valEl).innerText.trim();
+                        console.log(`[Debug] Yahoo: "${labelText}" found. Value text: "${valText}"`);
+                        return valText;
+                    };
+                    const priceEl = document.querySelector('[class*="PriceBoard__price"], ._3M-vTqfI, ._2S_1t3_Z, ._3rXWJK9P, ._1mD3hY0h');
+                    return {
+                        price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
+                        pbr: pickNumber(getVal('PBR')),
+                        dividendYield: pickNumber(getVal('配当利回り')),
+                        dividend_per_share: pickNumber(getVal('1株配当')),
+                        yearly_high: pickNumber(getVal('年初来高値')),
+                        yearly_low: pickNumber(getVal('年初来安値'))
+                    };
+                });
+
+                if (yahooDetails.price !== 'N/A') break; // 取得成功
+
+            } catch (err) {
+                console.warn(`      [Warn] Yahoo fetch attempt ${attempts} failed:`, err.message);
+            }
+        }
+
+        // 最終的に失敗した場合、スクリーンショットを撮って保存
+        if (yahooDetails.price === 'N/A') {
+            console.error(`      [Error] Yahoo Finance 取得に最終失敗しました (${code})。状況を確認するためスクリーンショットを保存します。`);
+            const errPath = `public/screenshots/error_yahoo_${code}.png`;
+            await page.screenshot({ path: errPath, fullPage: true });
+            try {
+                const fileContent = fs.readFileSync(errPath);
+                await supabase.storage.from('screenshots').upload(`error_yahoo_${code}.png`, fileContent, {
+                    contentType: 'image/png',
+                    upsert: true
+                });
+                console.log(`      [Info] エラー画面を Supabase にアップロードしました: error_yahoo_${code}.png`);
+            } catch (se) {
+                console.warn(`      [Warn] エラー画面のアップロードに失敗しました:`, se.message);
+            }
+        }
 
         const foundDetails = {};
 
