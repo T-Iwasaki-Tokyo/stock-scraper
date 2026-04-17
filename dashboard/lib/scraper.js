@@ -36,13 +36,18 @@ async function upsertStock(stock) {
     if (stock.dividendYield !== undefined) data.dividend_yield = stock.dividendYield !== '待機中...' ? stock.dividendYield : null;
     if (stock.yutaiYield !== undefined) data.yutai_yield = stock.yutaiYield;
     if (stock.pbr !== undefined) data.pbr = stock.pbr !== '待機中...' ? stock.pbr : null;
+    if (stock.yutai_desc) data.yutai_desc = stock.yutai_desc;
     if (stock.status) data.status = stock.status;
     if (stock.yahooUrl) data.yahoo_url = stock.yahooUrl;
     if (stock.chartUrl) data.chart_url = stock.chartUrl;
     
     // 移動平均線 (Kabutan)
-    if (stock.ma5 !== undefined) data.ma5 = stock.ma5;
-    if (stock.ma25 !== undefined) data.ma25 = stock.ma25;
+    if (stock.ma5_val !== undefined) data.ma5_val = stock.ma5_val;
+    if (stock.ma5_diff !== undefined) data.ma5_diff = stock.ma5_diff;
+    if (stock.ma5_trend !== undefined) data.ma5_trend = stock.ma5_trend;
+    if (stock.ma25_val !== undefined) data.ma25_val = stock.ma25_val;
+    if (stock.ma25_diff !== undefined) data.ma25_diff = stock.ma25_diff;
+    if (stock.ma25_trend !== undefined) data.ma25_trend = stock.ma25_trend;
 
     const { error } = await supabase
         .from('stocks')
