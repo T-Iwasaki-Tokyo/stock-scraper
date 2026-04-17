@@ -378,16 +378,38 @@ export async function fetchStockDetail(code) {
                     
                     const row = nameCell.parentElement;
                     const index = Array.from(row.cells).indexOf(nameCell);
-                    const valCell = nextRow.cells[index];
-                    if (!valCell) return null;
+                    if (index === -1) return { diff: null, trend: null };
 
-                    const text = valCell.innerText.trim();
-                    const m = text.match(/[+-]?[0-9.]+/);
-                    return m ? parseFloat(m[0]) : null;
+                    // 1つ下の行から乖離率（数値）を取得
+                    const nextRow = row.nextElementSibling;
+                    let diff = null;
+                    if (nextRow && nextRow.cells[index]) {
+                        const rawText = nextRow.cells[index].innerText.trim();
+                        const m = rawText.match(/[+-]?[0-9.]+/);
+                        if (m) diff = parseFloat(m[0]);
+                        console.log(`[Debug] ${keyword} Value Row: "${rawText}", Parsed: ${diff}`);
+                    }
+
+                    // 1つ上の行からトレンド（画像alt）を取得
+                    const prevRow = row.previousElementSibling;
+                    let trend = null;
+                    if (prevRow && prevRow.cells[index]) {
+                        const img = prevRow.cells[index].querySelector('img');
+                        if (img) {
+                            trend = img.alt || null;
+                            console.log(`[Debug] ${keyword} Trend Row Alt: "${trend}"`);
+                        }
+                    }
+
+                    return { diff, trend };
                 };
 
-                results.ma5_diff = getMADiff('5日線');
-                results.ma25_diff = getMADiff('25日線');
+                const ma5 = getMAData('5日線');
+                const ma25 = getMAData('25日線');
+                results.ma5_diff = ma5.diff;
+                results.ma5_trend = ma5.trend;
+                results.ma25_diff = ma25.diff;
+                results.ma25_trend = ma25.trend;
                 
                 return results;
             });
