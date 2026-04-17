@@ -280,7 +280,7 @@ export async function fetchStockList(config) {
 }
 
 // Phase 2: 銘柄詳細取得
-export async function fetchStockDetail(code) {
+export async function fetchStockDetail(code, name) {
     const browser = await getBrowser();
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -446,6 +446,7 @@ export async function fetchStockDetail(code) {
 
         const stockData = {
             code,
+            name: name || undefined,
             ...yahooDetails,
             ...foundDetails,
             ...kabutanDetails,
@@ -527,6 +528,19 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                     name: s.name,
                     status: 'pending'
                 }));
+
+                // ダッシュボード側に進捗を表示させるため、一旦 stocks テーブルをクリアして pending 状態で登録
+                console.log(`      -> ${list.length} 件の銘柄を初期化登録中...`);
+                await supabase.from('stocks').delete().neq('code', '');
+                if (list.length > 0) {
+                    const initialData = list.map(s => ({
+                        code: s.code,
+                        name: s.name,
+                        status: 'pending',
+                        updated_at: new Date().toISOString()
+                    }));
+                    await supabase.from('stocks').upsert(initialData);
+                }
             } else {
                 console.log('[2/4] モード: 条件検索');
                 list = await fetchStockList(config);
@@ -541,7 +555,7 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 const s = list[i];
                 console.log(`      (${i + 1}/${list.length}) ${s.name} (${s.code}) を詳細取得中...`);
                 try {
-                    const result = await fetchStockDetail(s.code);
+                    const result = await fetchStockDetail(s.code, s.name);
                     if (result.price === 'N/A') {
                         retryList.push(s);
                     }
@@ -570,7 +584,7 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                     const s = retryList[i];
                     console.log(`      [Retry] (${i + 1}/${retryList.length}) ${s.name} (${s.code}) を再取得中...`);
                     try {
-                        await fetchStockDetail(s.code);
+                        await fetchStockDetail(s.code, s.name);
                     } catch (e) {
                         console.error(`      [Retry Error] ${s.code} の再取得に失敗しました:`, e.message);
                     }
