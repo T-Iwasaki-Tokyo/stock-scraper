@@ -279,7 +279,7 @@ export async function fetchStockList(config) {
 export async function fetchStockDetail(code) {
     const browser = await getBrowser();
     const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0 Safari/120.0.0.0'
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     });
     const page = await context.newPage();
 
@@ -293,8 +293,8 @@ export async function fetchStockDetail(code) {
 
     try {
         // --- 1. Yahoo Finance ---
-        await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('body', { timeout: 10000 });
+        // 待機条件を 'load' に強化
+        await page.goto(`https://finance.yahoo.co.jp/quote/${code}.T`, { waitUntil: 'load', timeout: 30000 });
         
         const yahooDetails = await page.evaluate(() => {
             const pickNumber = (text) => {
@@ -304,13 +304,25 @@ export async function fetchStockDetail(code) {
             };
             const getVal = (labelText) => {
                 const allCells = Array.from(document.querySelectorAll('dt, th'));
+                console.log(`[Debug] Yahoo: Searching for "${labelText}" among ${allCells.length} cells.`);
                 const target = allCells.find(el => el.innerText.includes(labelText));
-                if (!target) return 'N/A';
+                if (!target) {
+                    console.log(`[Debug] Yahoo: "${labelText}" label NOT found.`);
+                    return 'N/A';
+                }
                 const valEl = target.nextElementSibling;
-                return valEl ? valEl.innerText : 'N/A';
+                const valText = valEl ? valEl.innerText : 'N/A';
+                console.log(`[Debug] Yahoo: "${labelText}" found. Value: "${valText}"`);
+                return valText;
             };
-            // セレクタを強化
+            // 株価セレクタを強化
             const priceEl = document.querySelector('[class*="PriceBoard__price"], ._3M-vTqfI, ._2S_1t3_Z, ._3rXWJK9P, ._1mD3hY0h');
+            if (priceEl) {
+                console.log(`[Debug] Yahoo: Price element found. Text: "${priceEl.innerText}"`);
+            } else {
+                console.log(`[Debug] Yahoo: Price element NOT found.`);
+            }
+
             return {
                 price: priceEl ? pickNumber(priceEl.innerText) : 'N/A',
                 pbr: pickNumber(getVal('PBR')),
