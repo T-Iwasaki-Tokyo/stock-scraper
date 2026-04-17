@@ -360,19 +360,24 @@ export async function fetchStockDetail(code) {
         // --- 3. 株探 (Kabutan) ---
         let kabutanDetails = { ma5_val: null, ma5_diff: null, ma5_trend: null, ma25_val: null, ma25_diff: null, ma25_trend: null };
         try {
-            await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'domcontentloaded' });
+            // 待機条件を 'load' に強化
+            await page.goto(`https://kabutan.jp/stock/?code=${code}`, { waitUntil: 'load', timeout: 30000 });
+            
             kabutanDetails = await page.evaluate(() => {
                 const results = { ma5_diff: null, ma5_trend: null, ma25_diff: null, ma25_trend: null };
                 const allCells = Array.from(document.querySelectorAll('td, th'));
                 
+                console.log(`[Debug] Analyzing Kabutan MA table... (Total cells: ${allCells.length})`);
+
                 const getMAData = (keyword) => {
                     const nameCell = allCells.find(el => el.innerText.trim() === keyword);
-                    if (!nameCell) return { diff: null, trend: null };
+                    if (!nameCell) {
+                        console.log(`[Debug] "${keyword}" label not found.`);
+                        return { diff: null, trend: null };
+                    }
                     
                     const row = nameCell.parentElement;
                     const index = Array.from(row.cells).indexOf(nameCell);
-                    if (index === -1) return null;
-                    
                     const valCell = nextRow.cells[index];
                     if (!valCell) return null;
 
