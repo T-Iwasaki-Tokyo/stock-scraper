@@ -318,12 +318,6 @@ export async function fetchStockDetail(code) {
                 await page.waitForSelector('.table_tr', { timeout: 10000 }).catch(() => {});
                 
                 const yutaiDetails = await page.evaluate(() => {
-                const item = document.querySelector('.table_tr');
-                if (!item) return { yutaiYield: 'N/A', totalYield: 'N/A', yutai_desc: '' };
-
-                const tyEl = item.querySelector('[data-js="ty"]') || item.querySelector('.rima_num');
-                const descEl = item.querySelector('.yutai_content_text');
-                const yutaiDetails = await page.evaluate(() => {
                     const item = document.querySelector('.table_tr');
                     if (!item) return null;
 
@@ -358,16 +352,15 @@ export async function fetchStockDetail(code) {
                         yutai_desc: item.querySelector('.yutai_content_text')?.innerText.trim()
                     };
                 });
+                
                 if (yutaiDetails) {
-                    // 値が取れたものだけマージする
                     if (yutaiDetails.totalYield) foundDetails.totalYield = yutaiDetails.totalYield;
                     if (yutaiDetails.yutaiYield) foundDetails.yutaiYield = yutaiDetails.yutaiYield;
                     if (yutaiDetails.yutai_desc) foundDetails.yutai_desc = yutaiDetails.yutai_desc;
                 }
-            });
-        } catch (ye) {
-            console.warn(`[Warn] Kabuyutai fetch failed for ${code}:`, ye.message);
-        }
+            } catch (ye) {
+                console.warn(`[Warn] Kabuyutai fetch failed for ${code}:`, ye.message);
+            }
 
         // --- 3. 株探 (Kabutan) ---
         let kabutanDetails = { ma5: 'N/A', ma25: 'N/A' };
