@@ -20,6 +20,7 @@ export default function DashboardPage() {
   
   const [sortKey, setSortKey] = useState<string>('code');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [isTriggering, setIsTriggering] = useState(false);
 
   const [lastScreenshotUrl, setLastScreenshotUrl] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -242,11 +243,9 @@ export default function DashboardPage() {
   };
 
   const handleRunScraper = async () => {
-    if (isRunning) return;
+    if (isRunning || isTriggering) return;
     
-    // UIのステータスを即座に更新（実際のアクションはGitHub側で非同期に動く）
-    setStatus({ ...status, phase: 'searching', message: 'GitHub Actions を起動中...' });
-    setIsRunning(true);
+    setIsTriggering(true);
 
     try {
       const res = await fetch('/api/scrape/trigger', { method: 'POST' });
@@ -260,9 +259,9 @@ export default function DashboardPage() {
         throw new Error(data.error || '起動に失敗しました');
       }
     } catch (e: any) {
-      alert(`❌ エラー: ${e.message}\n\nVercelの環境変数 GITHUB_ACCESS_TOKEN が正しく設定されているか確認してください。`);
-      setIsRunning(false);
-      setStatus({ ...status, phase: 'idle', message: '待機中' });
+      alert(`エラー: ${e.message}`);
+    } finally {
+      setIsTriggering(false);
     }
   };
 
