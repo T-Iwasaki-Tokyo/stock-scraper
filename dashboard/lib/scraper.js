@@ -362,8 +362,10 @@ export async function fetchStockDetail(code) {
             });
             
             if (detailYields) {
-                if (detailYields.totalYield) foundDetails.totalYield = detailYields.totalYield;
-                if (detailYields.yutaiYield) foundDetails.yutaiYield = detailYields.yutaiYield;
+                // % 記号などを除去して数値文字列として保存
+                const cleanYield = (val) => val ? val.replace(/[%％]/g, '').trim() : null;
+                if (detailYields.totalYield) foundDetails.totalYield = cleanYield(detailYields.totalYield);
+                if (detailYields.yutaiYield) foundDetails.yutaiYield = cleanYield(detailYields.yutaiYield);
                 if (detailYields.yutai_desc) foundDetails.yutai_desc = detailYields.yutai_desc;
             }
         } catch (ye) {
