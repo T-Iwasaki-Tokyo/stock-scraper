@@ -304,48 +304,66 @@ export async function fetchStockDetail(code) {
             };
         });
 
-        // --- 2. 楽しい株主優待＆配当 (利回り補完) ---
-        let yutaiDetails = { yutaiYield: 'N/A', totalYield: 'N/A', yutai_desc: '' };
+    // --- 2. 詳細情報補完 (Phase 2) ---
+    async function fetchStockDetail(code) {
+        let browser;
         try {
-            await page.goto(`https://www.kabuyutai.com/tool/index.php?code=${code}&btn=%E3%81%93%E3%81%AE%E6%9D%A1%E4%BB%B6%E3%81%A7%E6%A4%9C%E7%B4%A2%E3%81%99%E3%82%8B`, { waitUntil: 'domcontentloaded' });
-            yutaiDetails = await page.evaluate(() => {
+            browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage();
+            const foundDetails = {};
+
+            // --- 2-1. 楽しい株主優待＆配当 (利回り補完) ---
+            try {
+                await page.goto(`https://www.kabuyutai.com/tool/index.php?code=${code}&btn=%E3%81%93%E3%81%AE%E6%9D%A1%E4%BB%B6%E3%81%A7%E6%A4%9C%E7%B4%A2%E3%81%99%E3%82%8B`, { waitUntil: 'load' });
+                await page.waitForSelector('.table_tr', { timeout: 10000 }).catch(() => {});
+                
+                const yutaiDetails = await page.evaluate(() => {
                 const item = document.querySelector('.table_tr');
                 if (!item) return { yutaiYield: 'N/A', totalYield: 'N/A', yutai_desc: '' };
 
                 const tyEl = item.querySelector('[data-js="ty"]') || item.querySelector('.rima_num');
                 const descEl = item.querySelector('.yutai_content_text');
-                const pTags = Array.from(item.querySelectorAll('p'));
-                
-                const pickYield = (labelText) => {
-                    const regex = new RegExp('【\\s*' + labelText + '\\s*】');
-                    const p = pTags.find(el => regex.test(el.innerText));
-                    if (!p) return 'N/A';
-                    const span = p.querySelector('.tousi_price');
-                    if (!span) return 'N/A';
-                    const val = span.innerText.trim();
-                    const match = val.match(/[0-9.]+[%％]?/);
-                    return match ? match[0] : 'N/A';
-                };
+                const yutaiDetails = await page.evaluate(() => {
+                    const item = document.querySelector('.table_tr');
+                    if (!item) return null;
 
-                const getVal = (selectors) => {
-                    for (const sel of selectors) {
-                        const el = item.querySelector(sel);
-                        if (el) {
-                            const text = el.innerText.trim();
-                            if (/[0-9.]+/.test(text)) {
-                                const m = text.match(/[0-9.]+[%％]?/);
-                                return m ? m[0] : null;
+                    const pickYield = (labelText) => {
+                        const regex = new RegExp('【\\s*' + labelText + '\\s*】');
+                        const p = Array.from(item.querySelectorAll('p')).find(el => regex.test(el.innerText));
+                        if (!p) return null;
+                        const span = p.querySelector('.tousi_price');
+                        if (!span) return null;
+                        const val = span.innerText.trim();
+                        const match = val.match(/[0-9.]+[%％]?/);
+                        return match ? match[0] : null;
+                    };
+
+                    const getVal = (selectors) => {
+                        for (const sel of selectors) {
+                            const el = item.querySelector(sel);
+                            if (el) {
+                                const text = el.innerText.trim();
+                                if (/[0-9.]+/.test(text)) {
+                                    const m = text.match(/[0-9.]+[%％]?/);
+                                    return m ? m[0] : null;
+                                }
                             }
                         }
-                    }
-                    return 'N/A';
-                };
+                        return null;
+                    };
 
-                return {
-                    totalYield: getVal(['[data-js="ty"]', '.rima_num']),
-                    yutaiYield: pickYield('優待利回り'),
-                    yutai_desc: descEl ? descEl.innerText.trim() : ''
-                };
+                    return {
+                        totalYield: getVal(['[data-js="ty"]', '.rima_num']),
+                        yutaiYield: pickYield('優待利回り'),
+                        yutai_desc: item.querySelector('.yutai_content_text')?.innerText.trim()
+                    };
+                });
+                if (yutaiDetails) {
+                    // 値が取れたものだけマージする
+                    if (yutaiDetails.totalYield) foundDetails.totalYield = yutaiDetails.totalYield;
+                    if (yutaiDetails.yutaiYield) foundDetails.yutaiYield = yutaiDetails.yutaiYield;
+                    if (yutaiDetails.yutai_desc) foundDetails.yutai_desc = yutaiDetails.yutai_desc;
+                }
             });
         } catch (ye) {
             console.warn(`[Warn] Kabuyutai fetch failed for ${code}:`, ye.message);
@@ -358,20 +376,29 @@ export async function fetchStockDetail(code) {
             // .stock_table は無くなったため、テーブル要素から直接探す
             kabutanDetails = await page.evaluate(() => {
                 const results = { ma5_val: null, ma5_diff: null, ma25_val: null, ma25_diff: null };
-                const cells = Array.from(document.querySelectorAll('td, th'));
                 
-                const getRowValue = (keyword) => {
-                    const cell = cells.find(el => el.innerText.includes(keyword));
-                    if (!cell) return null;
-                    const row = cell.parentElement;
-                    if (!row) return null;
-                    // キーワードを含まないセルのうち、数値らしいものを探す
-                    const valCell = Array.from(row.cells).find(c => /[0-9,.]+/.test(c.innerText) && c !== cell);
+                // 株探の表から5日・25日線を探す (各td/thを走査)
+                const allCells = Array.from(document.querySelectorAll('td, th'));
+                
+                const getMAData = (keyword) => {
+                    const nameCell = allCells.find(el => el.innerText.includes(keyword));
+                    if (!nameCell) return null;
+                    
+                    const row = nameCell.parentElement;
+                    const nextRow = row?.nextElementSibling;
+                    if (!row || !nextRow) return null;
+                    
+                    // 現在の行でのインデックスを特定
+                    const index = Array.from(row.cells).indexOf(nameCell);
+                    if (index === -1) return null;
+                    
+                    // 次の行の同じ位置にある数値を取得
+                    const valCell = nextRow.cells[index];
                     return valCell ? valCell.innerText.trim() : null;
                 };
 
-                const ma5Str = getRowValue('5日線');
-                const ma25Str = getRowValue('25日線');
+                const ma5Str = getMAData('5日線');
+                const ma25Str = getMAData('25日線');
 
                 const priceText = document.querySelector('.stock_price')?.innerText || '';
                 const price = parseFloat(priceText.replace(/,/g, ''));
@@ -399,7 +426,7 @@ export async function fetchStockDetail(code) {
         const stockData = {
             code,
             ...yahooDetails,
-            ...yutaiDetails,
+            ...foundDetails, // N/Aを含まない、実際に取得できた詳細のみ上書き
             ...kabutanDetails,
             yahooUrl: `https://finance.yahoo.co.jp/quote/${code}.T`,
             chartUrl: `https://finance.yahoo.co.jp/quote/${code}.T/chart`,
