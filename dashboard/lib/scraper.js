@@ -52,6 +52,7 @@ async function upsertStock(stock) {
     if (stock.yearly_high !== undefined) data.yearly_high = stock.yearly_high !== 'N/A' ? parseFloat(stock.yearly_high) : null;
     if (stock.yearly_low !== undefined) data.yearly_low = stock.yearly_low !== 'N/A' ? parseFloat(stock.yearly_low) : null;
     if (stock.minkabu_url) data.minkabu_url = stock.minkabu_url;
+    if (stock.sbi_trend) data.sbi_trend = stock.sbi_trend;
 
     const { error } = await supabase
         .from('stocks')
@@ -458,12 +459,42 @@ export async function fetchStockDetail(code, name) {
             }
         }
 
+        // --- 4. SBI Chartfolio ---
+        let sbiTrend = null;
+        try {
+            const sbiUrl = `https://chartfolio.sbisec.co.jp/?act_id=trend&p=${code}&rgt=0&hashkey=0174ea04042f2cfa49fdb604c936d037d7f1cf2e&ctype=mainsite&site=site3.sbisec.co.jp`;
+            
+            // 確実に読み込むため domcontentloaded で入り、少し待機
+            await page.goto(sbiUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForSelector('.cftrditmlbl', { timeout: 15000 }).catch(() => {});
+            
+            sbiTrend = await page.evaluate(() => {
+                // 選択されている銘柄のトレンドラベルを取得
+                const selectedTrend = document.querySelector('.cftrndcomp-select + .cftrditmlbl');
+                if (selectedTrend) return selectedTrend.innerText.trim();
+                
+                // フォールバック: 全体から探す（通常は上記で取れるはず）
+                const trends = Array.from(document.querySelectorAll('.cftrditm'));
+                const target = trends.find(el => el.querySelector('.cftrndcomp-select'));
+                if (target) {
+                    const lbl = target.querySelector('.cftrditmlbl');
+                    return lbl ? lbl.innerText.trim() : null;
+                }
+                return null;
+            });
+            
+            console.log(`[Debug] SBI Trend for ${code}: ${sbiTrend}`);
+        } catch (se) {
+            console.warn(`      [Warn] SBI Chartfolio fetch failed for ${code}:`, se.message);
+        }
+
         const stockData = {
             code,
             name: name || undefined,
             ...yahooDetails,
             ...foundDetails,
             ...kabutanDetails,
+            sbi_trend: sbiTrend,
             yahooUrl: `https://finance.yahoo.co.jp/quote/${code}.T`,
             chartUrl: `https://finance.yahoo.co.jp/quote/${code}.T/chart`,
             minkabu_url: `https://minkabu.jp/stock/${code}`, // casing fixed to match upsertStock

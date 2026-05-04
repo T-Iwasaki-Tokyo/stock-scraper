@@ -265,11 +265,30 @@ export default function DashboardPage() {
     }
   };
 
+  const handleStopScraper = async () => {
+    if (!confirm('実行中の検索を停止してもよろしいですか？')) return;
+    setIsTriggering(true);
+    try {
+      const res = await fetch('/api/scrape/stop', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || '停止リクエストを送信しました');
+        fetchResults();
+      } else {
+        throw new Error(data.error || '停止に失敗しました');
+      }
+    } catch (e: any) {
+      alert(`エラー: ${e.message}`);
+    } finally {
+      setIsTriggering(false);
+    }
+  };
+
   const downloadCSV = () => {
     if (results.length === 0) return;
-    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
+    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', 'チャート形状', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
     const rows = results.map(s => [
-      s.code, s.name, s.price, s.totalYield, s.dividendYield, s.dividendPerShare || '-', s.yutaiYield, s.pbr, 
+      s.code, s.name, s.price, s.totalYield, s.dividendYield, s.dividendPerShare || '-', s.yutaiYield, s.pbr, s.sbiTrend || '-',
       s.yearlyHigh || '-', s.yearlyLow || '-',
       s.ma5_val || '-', s.ma5Diff || '-', s.ma25_val || '-', s.ma25Diff || '-',
       s.timestamp || '-', s.yahooUrl
@@ -320,14 +339,25 @@ export default function DashboardPage() {
             <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></div>
             <span className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">{isRunning ? 'システム稼働中' : 'アイドル状態'}</span>
           </div>
-          <button 
-            onClick={handleRunScraper}
-            disabled={isRunning}
-            className="w-full bg-white text-slate-900 py-3 rounded font-bold text-sm shadow-xl hover:bg-slate-50 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            {isRunning ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />} 
-            {isRunning ? '取得中...' : '検索を開始'}
-          </button>
+          {isRunning ? (
+            <button 
+              onClick={handleStopScraper}
+              disabled={isTriggering}
+              className="w-full bg-rose-500 text-white py-3 rounded font-bold text-sm shadow-xl hover:bg-rose-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              {isTriggering ? <RefreshCw size={16} className="animate-spin" /> : <Activity size={16} />} 
+              停止する
+            </button>
+          ) : (
+            <button 
+              onClick={handleRunScraper}
+              disabled={isTriggering}
+              className="w-full bg-white text-slate-900 py-3 rounded font-bold text-sm shadow-xl hover:bg-slate-50 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              {isTriggering ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />} 
+              検索を開始
+            </button>
+          )}
         </div>
 
         <div className="px-8 py-5 bg-slate-950/40 border-t border-slate-800/50">
@@ -521,6 +551,12 @@ export default function DashboardPage() {
                           {sortKey === 'pbr' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
+                      <th className="w-32 text-center cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('sbiTrend')}>
+                        <div className="flex items-center justify-center gap-1">
+                          チャート形状
+                          {sortKey === 'sbiTrend' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
                       <th className="w-24 text-right pr-2">
                         <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
                           年初来<br/>高安
@@ -579,6 +615,13 @@ export default function DashboardPage() {
                             {stock.yutaiYield && stock.yutaiYield !== 'N/A' ? `${stock.yutaiYield}%` : '-'}
                           </td>
                           <td className="text-right font-bold text-slate-500">{stock.pbr || '-'}</td>
+                          <td className="text-center">
+                            {stock.sbiTrend ? (
+                              <span className="text-[11px] font-black px-2 py-1 bg-slate-100 rounded-md text-slate-700 whitespace-nowrap">
+                                {stock.sbiTrend}
+                              </span>
+                            ) : '-'}
+                          </td>
                           <td className="text-right pr-2">
                             <div className="flex flex-col items-end leading-tight text-[10px] font-mono">
                               <span className="text-rose-400">H: {stock.yearlyHigh || '-'}</span>

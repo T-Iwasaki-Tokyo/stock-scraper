@@ -1,0 +1,70 @@
+"Input not found"
+SELECT tyf: {
+  html: '<select name="tyf" id="tyf" class="search-select js-recount">\n' +
+    '                                            <option value="" selected="">下限なし</option>\n' +
+    '                                                                                            <option value="0.5">0.5％</option>\n' +
+    '                                                                                            <option value="1">1％</option>\n' +
+    '                                                                                            <option value="1.5">1.5％</option>\n' +
+    '                                                                                            <option value="2">2％</option>\n' +
+    '                                                                                            <option value="2.5">2.5％</option>\n' +
+    '                                                                                            <option value="3">3％</option>\n' +
+    '                                                                                            <option value="3.5">3.5％</option>\n' +
+    '                                                                                            <option value="4">4％</option>\n' +
+    '                                                                                            <option value="4.5">4.5％</option>\n' +
+    '                                                                                            <option value="5">5％</option>\n' +
+    '                                                                                            <option value="5.5">5.5％</option>\n' +
+    '                                                                                            <option value="6">6％</option>\n' +
+    '                                                                                            <option value="6.5">6.5％</option>\n' +
+    '                                                                                            <option value="7">7％</option>\n' +
+    '                                                                                            <option value="7.5">7.5％</option>\n' +
+    '                                                                                            <option value="8">8％</option>\n' +
+    '                                                                                            <option value="8.5">8.5％</option>\n' +
+    '                                                                                            <option value="9">9％</option>\n' +
+    '                                                                                            <option value="9.5">9.5％</option>\n' +
+    '                                                                                            <option value="10">10％</option>\n' +
+    '                                                                                            <option value="10.5">10.5％</option>\n' +
+    '                                                                                            <option value="11">11％</option>\n' +
+    '                                                                                            <option value="11.5">11.5％</option>\n' +
+    '                                                                                            <option value="12">12％</option>\n' +
+    '                                                                                            <option value="12.5">12.5％</option>\n' +
+    '                                                                                            <option value="13">13％</option>\n' +
+    '                                                                                            <option value="13.5">13.5％</option>\n' +
+    '                                                                                            <option value="14">14％</option>\n' +
+    '                                                                                            <option value="14.5">14.5％</option>\n' +
+    '                                                                                            <option value="15">15％</option>\n' +
+    '                                                                                    </select>',
+  value: '',
+  options: [
+    { text: '下限なし', value: '' },
+    { text: '0.5％', value: '0.5' },
+    { text: '1％', value: '1' },
+    { text: '1.5％', value: '1.5' },
+    { text: '2％', value: '2' },
+    { text: '2.5％', value: '2.5' },
+    { text: '3％', value: '3' },
+    { text: '3.5％', value: '3.5' },
+    { text: '4％', value: '4' },
+    { text: '4.5％', value: '4.5' },
+    { text: '5％', value: '5' },
+    { text: '5.5％', value: '5.5' },
+    { text: '6％', value: '6' },
+    { text: '6.5％', value: '6.5' },
+    { text: '7％', value: '7' },
+    { text: '7.5％', value: '7.5' },
+    { text: '8％', value: '8' },
+    { text: '8.5％', value: '8.5' },
+    { text: '9％', value: '9' },
+    { text: '9.5％', value: '9.5' },
+    { text: '10％', value: '10' },
+    { text: '10.5％', value: '10.5' },
+    { text: '11％', value: '11' },
+    { text: '11.5％', value: '11.5' },
+    { text: '12％', value: '12' },
+    { text: '12.5％', value: '12.5' },
+    { text: '13％', value: '13' },
+    { text: '13.5％', value: '13.5' },
+    { text: '14％', value: '14' },
+    { text: '14.5％', value: '14.5' },
+    { text: '15％', value: '15' }
+  ]
+}

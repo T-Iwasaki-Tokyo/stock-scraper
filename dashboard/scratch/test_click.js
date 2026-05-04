@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-async function testClick() {
+async function test() {
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -7,26 +7,34 @@ async function testClick() {
     const page = await context.newPage();
     await page.goto('https://www.kabuyutai.com/tool/', { waitUntil: 'load' });
     
-    console.log("Evaluating click...");
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }).catch(e => console.log('Navigation timeout:', e.message)),
-        page.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a'));
-            const btn = links.find(a => a.innerText.includes('この条件で検索する') && a.offsetWidth > 0 && a.offsetHeight > 0);
-            if (btn) {
-                console.log('Found visible button, clicking...');
-                btn.click();
-            } else {
-                console.log('No visible button found');
-            }
-        })
-    ]);
+    // Attempt clicking 4月 label
+    console.log("Attempting to click label with text '4月'...");
+    try {
+        await page.click('label:has-text("4月")', { timeout: 5000 });
+        console.log("Clicked label.");
+    } catch (e) {
+        console.log("Label click failed, trying alternative text search...");
+        const label = await page.evaluateHandle(() => {
+            return Array.from(document.querySelectorAll('label, div, span, li')).find(el => el.innerText.trim() === '4月');
+        });
+        if (label) {
+            await label.asElement().click();
+            console.log("Found and clicked alternative element.");
+        } else {
+            console.log("No element with text '4月' found.");
+        }
+    }
     
-    console.log('Current URL after click:', page.url());
-
-    const results = await page.$$eval('.table_tr', els => els.length).catch(() => 0);
-    console.log('Found table rows:', results);
-
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: 'test_click.png' });
+    
+    // Check if input is checked
+    const checked = await page.evaluate(() => {
+        const input = Array.from(document.querySelectorAll('input[name="fm[]"]')).find(el => el.parentElement.innerText.includes('4月') || el.nextElementSibling?.innerText.includes('4月'));
+        return input ? input.checked : "Input not found";
+    });
+    console.log("Input checked status:", checked);
+    
     await browser.close();
 }
-testClick().catch(console.error);
+test().catch(console.error);

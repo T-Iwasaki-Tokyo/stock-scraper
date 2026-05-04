@@ -37,6 +37,7 @@ export async function GET() {
             yahooUrl: s.yahoo_url,
             chartUrl: s.chart_url,
             minkabuUrl: s.minkabu_url,
+            sbiTrend: s.sbi_trend,
             timestamp: s.updated_at ? new Date(s.updated_at).toLocaleString('ja-JP') : null
         }));
 
