@@ -558,7 +558,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="main-panel rounded-xl shadow-sm overflow-x-auto bg-white border border-slate-100 custom-scrollbar">
+              <div className="main-panel rounded-xl shadow-sm overflow-x-auto bg-white border border-slate-100 custom-scrollbar min-h-[1500px]">
                 <table className="data-table table-auto w-full">
                   <thead>
                     <tr>
