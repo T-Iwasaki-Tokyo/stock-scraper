@@ -559,7 +559,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="main-panel rounded-xl shadow-sm overflow-x-auto bg-white border border-slate-100 custom-scrollbar">
-                <table className="data-table min-w-[2800px]">
+                <table className="data-table min-w-[2900px]">
                   <thead>
                     <tr>
                       <th className="w-32 sticky left-0 z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] pl-6">状態</th>
@@ -644,9 +644,16 @@ export default function DashboardPage() {
                           {sortKey === 'sbiTrend' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-24 text-right pr-2">
+                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('yearlyHigh')}>
                         <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
-                          年初来<br/>高安
+                          年初来高値
+                          {sortKey === 'yearlyHigh' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-24 text-right pr-2 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('yearlyLow')}>
+                        <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
+                          年初来安値
+                          {sortKey === 'yearlyLow' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
                       <th className="w-28 text-right underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('ma5Diff')}>
@@ -721,11 +728,13 @@ export default function DashboardPage() {
                             })()}
                           </td>
                           <td className="text-right font-black text-slate-700">
-                            {stock.price ? (
+                            {stock.price && stock.price !== '取得中...' ? (
                               <div className="flex flex-col items-end">
                                 <span>{Number(stock.price).toLocaleString()}円</span>
                               </div>
-                            ) : '-'}
+                            ) : (
+                              <span className="text-slate-400 text-xs">{stock.price || '-'}</span>
+                            )}
                           </td>
                           <td className="text-right font-bold text-slate-500 text-xs">
                             {stock.shares ? `${Number(stock.shares).toLocaleString()}` : '-'}
@@ -765,11 +774,11 @@ export default function DashboardPage() {
                               </span>
                             ) : '-'}
                           </td>
-                          <td className="text-right pr-2">
-                            <div className="flex flex-col items-end leading-tight text-[10px] font-mono">
-                              <span className="text-rose-400">H: {stock.yearlyHigh || '-'}</span>
-                              <span className="text-emerald-500">L: {stock.yearlyLow || '-'}</span>
-                            </div>
+                          <td className="text-right font-mono text-[10px] text-rose-400">
+                            {stock.yearlyHigh ? `${Number(stock.yearlyHigh).toLocaleString()}円` : '-'}
+                          </td>
+                          <td className="text-right pr-2 font-mono text-[10px] text-emerald-500">
+                            {stock.yearlyLow ? `${Number(stock.yearlyLow).toLocaleString()}円` : '-'}
                           </td>
                           <td className="text-right font-bold">
                             <div className="flex flex-col items-end">

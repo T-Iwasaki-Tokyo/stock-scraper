@@ -31,11 +31,26 @@ async function upsertStock(stock) {
     };
 
     if (stock.name) data.name = stock.name;
-    if (stock.price !== undefined) data.price = stock.price !== '取得中...' ? stock.price : null;
-    if (stock.totalYield !== undefined) data.total_yield = stock.totalYield;
-    if (stock.dividendYield !== undefined) data.dividend_yield = stock.dividendYield !== '待機中...' ? stock.dividendYield : null;
-    if (stock.yutaiYield !== undefined) data.yutai_yield = stock.yutaiYield;
-    if (stock.pbr !== undefined) data.pbr = stock.pbr !== '待機中...' ? stock.pbr : null;
+    if (stock.price !== undefined) {
+        const p = parseFloat(stock.price);
+        data.price = isNaN(p) ? null : p;
+    }
+    if (stock.totalYield !== undefined) {
+        const y = parseFloat(stock.totalYield);
+        data.total_yield = isNaN(y) ? null : y;
+    }
+    if (stock.dividendYield !== undefined) {
+        const y = parseFloat(stock.dividendYield);
+        data.dividend_yield = isNaN(y) ? null : y;
+    }
+    if (stock.yutaiYield !== undefined) {
+        const y = parseFloat(stock.yutaiYield);
+        data.yutai_yield = isNaN(y) ? null : y;
+    }
+    if (stock.pbr !== undefined) {
+        const p = parseFloat(stock.pbr);
+        data.pbr = isNaN(p) ? null : p;
+    }
     if (stock.yutai_desc) data.yutai_desc = stock.yutai_desc;
     if (stock.status) data.status = stock.status;
     if (stock.yahooUrl) data.yahoo_url = stock.yahooUrl;
