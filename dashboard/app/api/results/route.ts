@@ -40,6 +40,11 @@ export async function GET() {
             sbiTrend: s.sbi_trend,
             shares: s.shares,
             avgPrice: s.avg_price,
+            fileDividendYield: s.file_dividend_yield,
+            sector: s.sector,
+            investRatio: s.invest_ratio,
+            investAmount: s.invest_amount,
+            dividendSum: s.dividend_sum,
             timestamp: s.updated_at ? new Date(s.updated_at).toLocaleString('ja-JP') : null
         }));
 

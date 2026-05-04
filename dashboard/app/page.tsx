@@ -94,7 +94,7 @@ export default function DashboardPage() {
       let valB = b[sortKey];
 
       // 数値変換（利回りや金額用）
-      if (['price', 'totalYield', 'dividendYield', 'yutaiYield', 'pbr', 'ma5Diff', 'ma25Diff', 'shares', 'avgPrice'].includes(sortKey)) {
+      if (['price', 'totalYield', 'dividendYield', 'yutaiYield', 'pbr', 'ma5Diff', 'ma25Diff', 'shares', 'avgPrice', 'investRatio', 'investAmount', 'dividendSum', 'fileDividendYield'].includes(sortKey)) {
         valA = parseFloat(valA) || 0;
         valB = parseFloat(valB) || 0;
       }
@@ -228,7 +228,7 @@ export default function DashboardPage() {
     { name: 'その他', value: 'その他5' }
   ];
 
-  const setMode = async (mode: 'condition' | 'file') => {
+  const setMode = async (mode: 'condition' | 'file' | 'gakucho') => {
     const current = config.current || config;
     if (current.mode === mode) return;
 
@@ -309,7 +309,7 @@ export default function DashboardPage() {
 
   const downloadCSV = () => {
     if (results.length === 0) return;
-    const headers = ['コード', '銘柄名', '判定', '現在値', '保有数', '平均単価', '評価損益', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', 'チャート形状', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
+    const headers = ['コード', '銘柄名', 'セクター', '投資割合', '投資額', '配当金', 'ファイル配当利回り', '判定', '現在値', '保有数', '平均単価', '評価損益', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', 'チャート形状', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
     const rows = results.map(s => {
       const profit = (s.shares && s.avgPrice && s.price) ? (Number(s.price) - Number(s.avgPrice)) * Number(s.shares) : null;
       
@@ -321,7 +321,8 @@ export default function DashboardPage() {
       else if (p && h && p >= h * 0.95 && p <= h * 1.05) judgmentText = '売り時';
 
       return [
-        s.code, s.name, judgmentText, s.price, s.shares || '-', s.avgPrice || '-', profit || '-',
+        s.code, s.name, s.sector || '-', s.investRatio || '-', s.investAmount || '-', s.dividendSum || '-', s.fileDividendYield || '-',
+        judgmentText, s.price, s.shares || '-', s.avgPrice || '-', profit || '-',
         s.totalYield, s.dividendYield, s.dividendPerShare || '-', s.yutaiYield, s.pbr, s.sbiTrend || '-',
         s.yearlyHigh || '-', s.yearlyLow || '-',
         s.ma5_val || '-', s.ma5Diff || '-', s.ma25_val || '-', s.ma25Diff || '-',
@@ -534,7 +535,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="main-panel rounded-xl shadow-sm overflow-x-auto bg-white border border-slate-100 custom-scrollbar">
-                <table className="data-table min-w-[2200px]">
+                <table className="data-table min-w-[2800px]">
                   <thead>
                     <tr>
                       <th className="w-32 sticky left-0 z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] pl-6">状態</th>
@@ -550,6 +551,15 @@ export default function DashboardPage() {
                           {sortKey === 'name' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
+                      {config.current?.mode === 'gakucho' && (
+                        <>
+                          <th className="w-24 text-left cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('sector')}>セクター</th>
+                          <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('investRatio')}>投資割合</th>
+                          <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('investAmount')}>投資額</th>
+                          <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('dividendSum')}>配当金</th>
+                          <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('fileDividendYield')}>利回り(F)</th>
+                        </>
+                      )}
                       <th className="w-24 text-center">判定</th>
                       <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('price')}>
                         <div className="flex items-center justify-end gap-1">
@@ -663,6 +673,15 @@ export default function DashboardPage() {
                               <span className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title={stock.yutai_desc}>{stock.yutai_desc || '-'}</span>
                             </div>
                           </td>
+                          {config.current?.mode === 'gakucho' && (
+                            <>
+                              <td className="text-left text-xs font-bold text-slate-500">{stock.sector || '-'}</td>
+                              <td className="text-right text-xs font-bold text-slate-500">{stock.investRatio ? `${stock.investRatio}%` : '-'}</td>
+                              <td className="text-right text-xs font-bold text-slate-500">{stock.investAmount ? `${Number(stock.investAmount).toLocaleString()}円` : '-'}</td>
+                              <td className="text-right text-xs font-bold text-slate-500">{stock.dividendSum ? `${Number(stock.dividendSum).toLocaleString()}円` : '-'}</td>
+                              <td className="text-right text-xs font-bold text-indigo-400">{stock.fileDividendYield ? `${stock.fileDividendYield}%` : '-'}</td>
+                            </>
+                          )}
                           <td className="text-center">
                             {(() => {
                               const p = Number(stock.price);
@@ -821,16 +840,30 @@ export default function DashboardPage() {
                 >
                   <Download size={16} /> ファイル読込
                 </button>
+                <button 
+                  onClick={() => setMode('gakucho')}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-black transition-all ${((config.current || config).mode || 'condition') === 'gakucho' ? 'bg-white text-indigo-600 shadow-md translate-y-0' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <FileSpreadsheet size={16} /> 学長高配当ファイル読込
+                </button>
               </div>
 
-              {((config.current || config).mode || 'condition') === 'file' ? (
+              {(((config.current || config).mode || 'condition') === 'file' || ((config.current || config).mode || 'condition') === 'gakucho') ? (
                 <div className="main-panel p-16 rounded-3xl border-2 border-dashed border-slate-200 bg-white flex flex-col items-center gap-8 text-center">
                   <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center">
                     <FileSpreadsheet size={48} />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-black text-slate-800">銘柄リストのアップロード</h3>
-                    <p className="text-slate-500 max-w-md mx-auto">Excel (.xlsx) または CSV を読み込めます。<br/>A列に<strong>銘柄コード</strong>、B列に<strong>会社名</strong>を記載してください。</p>
+                    <h3 className="text-2xl font-black text-slate-800">
+                      {((config.current || config).mode === 'gakucho') ? '学長高配当リストのアップロード' : '銘柄リストのアップロード'}
+                    </h3>
+                    <p className="text-slate-500 max-w-md mx-auto">
+                      {((config.current || config).mode === 'gakucho') ? (
+                        <>A:コード, B:名称, C:配当利回り, D:セクター, E:投資割合, F:投資額, G:配当金, H:保有数, I:平均単価 の順に記載してください。</>
+                      ) : (
+                        <>Excel (.xlsx) または CSV を読み込めます。<br/>A列に<strong>銘柄コード</strong>、B列に<strong>会社名</strong>を記載してください。</>
+                      )}
+                    </p>
                   </div>
                   <div className="flex flex-col items-center gap-4 w-full max-w-sm">
                     <input 

@@ -55,6 +55,11 @@ async function upsertStock(stock) {
     if (stock.sbi_trend) data.sbi_trend = stock.sbi_trend;
     if (stock.shares !== undefined) data.shares = stock.shares;
     if (stock.avg_price !== undefined) data.avg_price = stock.avg_price;
+    if (stock.file_dividend_yield !== undefined) data.file_dividend_yield = stock.file_dividend_yield;
+    if (stock.sector !== undefined) data.sector = stock.sector;
+    if (stock.invest_ratio !== undefined) data.invest_ratio = stock.invest_ratio;
+    if (stock.invest_amount !== undefined) data.invest_amount = stock.invest_amount;
+    if (stock.dividend_sum !== undefined) data.dividend_sum = stock.dividend_sum;
 
     const { error } = await supabase
         .from('stocks')
@@ -593,7 +598,7 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 console.log('[2/4] モード: ファイル読み込み');
                 const { data: targetStocks, error: targetError } = await supabase
                     .from('target_stocks')
-                    .select('code, name, shares, avg_price');
+                    .select('code, name, shares, avg_price, file_dividend_yield, sector, invest_ratio, invest_amount, dividend_sum');
                 
                 if (targetError) {
                     console.error('[Error] 銘柄リストの取得に失敗しました:', targetError.message);
@@ -605,6 +610,11 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                     name: s.name,
                     shares: s.shares,
                     avg_price: s.avg_price,
+                    file_dividend_yield: s.file_dividend_yield,
+                    sector: s.sector,
+                    invest_ratio: s.invest_ratio,
+                    invest_amount: s.invest_amount,
+                    dividend_sum: s.dividend_sum,
                     status: 'pending'
                 }));
 
@@ -617,6 +627,11 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                         name: s.name,
                         shares: s.shares,
                         avg_price: s.avg_price,
+                        file_dividend_yield: s.file_dividend_yield,
+                        sector: s.sector,
+                        invest_ratio: s.invest_ratio,
+                        invest_amount: s.invest_amount,
+                        dividend_sum: s.dividend_sum,
                         status: 'pending',
                         updated_at: new Date().toISOString()
                     }));
@@ -637,10 +652,15 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 console.log(`      (${i + 1}/${list.length}) ${s.name} (${s.code}) を詳細取得中...`);
                 try {
                     const result = await fetchStockDetail(s.code, s.name);
-                    // ファイルモードの場合は保有数と単価を引き継ぐ
-                    if (config.mode === 'file') {
+                    // ファイルモードの場合は保有数と単価（および学長モードの各項目）を引き継ぐ
+                    if (config.mode === 'file' || config.mode === 'gakucho') {
                         result.shares = s.shares;
                         result.avg_price = s.avg_price;
+                        result.file_dividend_yield = s.file_dividend_yield;
+                        result.sector = s.sector;
+                        result.invest_ratio = s.invest_ratio;
+                        result.invest_amount = s.invest_amount;
+                        result.dividend_sum = s.dividend_sum;
                         await upsertStock(result);
                     }
                     if (result.price === 'N/A') {

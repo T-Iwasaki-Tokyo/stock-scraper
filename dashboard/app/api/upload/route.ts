@@ -23,12 +23,33 @@ export async function POST(request: Request) {
         // 1行目はヘッダとしてスキップ、2行目以降を取得
         const rawStocks = data.slice(1)
             .filter(row => row[0]) // コードがある行のみ
-            .map(row => ({
-                code: row[0].toString().trim(),
-                name: row[1]?.toString().trim() || '名称未設定',
-                shares: row[2] ? Number(row[2]) : null,
-                avg_price: row[3] ? Number(row[3]) : null
-            }));
+            .map(row => {
+                const code = row[0].toString().trim();
+                const name = row[1]?.toString().trim() || '名称未設定';
+                
+                // 列数によってモードを判定（A〜I列で9列ある場合）
+                if (row.length >= 9) {
+                    return {
+                        code,
+                        name,
+                        file_dividend_yield: row[2] ? Number(row[2]) : null,
+                        sector: row[3]?.toString().trim() || null,
+                        invest_ratio: row[4] ? Number(row[4]) : null,
+                        invest_amount: row[5] ? Number(row[5]) : null,
+                        dividend_sum: row[6] ? Number(row[6]) : null,
+                        shares: row[7] ? Number(row[7]) : null,
+                        avg_price: row[8] ? Number(row[8]) : null
+                    };
+                }
+                
+                // 通常の4列モード
+                return {
+                    code,
+                    name,
+                    shares: row[2] ? Number(row[2]) : null,
+                    avg_price: row[3] ? Number(row[3]) : null
+                };
+            });
 
         if (rawStocks.length === 0) {
             return NextResponse.json({ error: '有効な銘柄コードが見つかりませんでした' }, { status: 400 });
