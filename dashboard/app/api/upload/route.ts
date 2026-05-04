@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 
+// 数値を安全にパースするためのヘルパー
+const parseSafeNumber = (val: any): number | null => {
+    if (val === undefined || val === null || val === '') return null;
+    // Excel の数値変換 (文字列の場合のトリム等)
+    const num = typeof val === 'string' ? Number(val.trim()) : Number(val);
+    return isNaN(num) ? null : num;
+};
+
 export async function POST(request: Request) {
     try {
         const formData = await request.formData();
@@ -32,13 +40,13 @@ export async function POST(request: Request) {
                     return {
                         code,
                         name,
-                        file_dividend_yield: row[2] ? Number(row[2]) : null,
+                        file_dividend_yield: parseSafeNumber(row[2]),
                         sector: row[3]?.toString().trim() || null,
-                        invest_ratio: row[4] ? Number(row[4]) : null,
-                        invest_amount: row[5] ? Number(row[5]) : null,
-                        dividend_sum: row[6] ? Number(row[6]) : null,
-                        shares: row[7] ? Number(row[7]) : null,
-                        avg_price: row[8] ? Number(row[8]) : null
+                        invest_ratio: parseSafeNumber(row[4]),
+                        invest_amount: parseSafeNumber(row[5]),
+                        dividend_sum: parseSafeNumber(row[6]),
+                        shares: parseSafeNumber(row[7]),
+                        avg_price: parseSafeNumber(row[8])
                     };
                 }
                 
@@ -46,8 +54,8 @@ export async function POST(request: Request) {
                 return {
                     code,
                     name,
-                    shares: row[2] ? Number(row[2]) : null,
-                    avg_price: row[3] ? Number(row[3]) : null
+                    shares: parseSafeNumber(row[2]),
+                    avg_price: parseSafeNumber(row[3])
                 };
             });
 

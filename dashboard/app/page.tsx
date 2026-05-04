@@ -228,6 +228,24 @@ export default function DashboardPage() {
     { name: 'その他', value: 'その他5' }
   ];
 
+  const handleClearData = async () => {
+    if (!confirm('保存されているすべてのデータを削除します。よろしいですか？')) return;
+    
+    try {
+      const res = await fetch('/api/data/clear', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert('データをクリアしました。');
+        fetchResults(); // 表示を更新
+      } else {
+        alert('削除に失敗しました: ' + data.error);
+      }
+    } catch (e) {
+      console.error('Failed to clear data:', e);
+      alert('エラーが発生しました。');
+    }
+  };
+
   const setMode = async (mode: 'condition' | 'file' | 'gakucho') => {
     const current = config.current || config;
     if (current.mode === mode) return;
@@ -407,6 +425,12 @@ export default function DashboardPage() {
               </p>
             </div>
           )}
+          <button 
+            onClick={handleClearData}
+            className="mt-6 w-full py-2 px-3 rounded-lg border border-red-900/30 text-[10px] font-black text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-all flex items-center justify-center gap-2"
+          >
+            <Trash2 size={12} /> 全データをクリア
+          </button>
         </div>
       </div>
 
