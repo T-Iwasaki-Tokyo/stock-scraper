@@ -534,7 +534,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="main-panel rounded-xl shadow-sm overflow-x-auto bg-white border border-slate-100 custom-scrollbar">
-                <table className="data-table min-w-[1600px]">
+                <table className="data-table min-w-[2200px]">
                   <thead>
                     <tr>
                       <th className="w-32">状態</th>
