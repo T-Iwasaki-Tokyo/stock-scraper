@@ -466,24 +466,54 @@ export async function fetchStockDetail(code, name) {
             
             // 確実に読み込むため domcontentloaded で入り、少し待機
             await page.goto(sbiUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForSelector('.cftrditmlbl', { timeout: 15000 }).catch(() => {});
+            // 選択状態を示すクラスが付与されるまで待機
+            await page.waitForSelector('.cftrndcomp-select', { timeout: 15000 }).catch(() => {
+                console.log(`[Debug] .cftrndcomp-select not found for ${code} within timeout.`);
+            });
+            
+            // 追加の待機（描画安定のため）
+            await page.waitForTimeout(2000);
             
             sbiTrend = await page.evaluate(() => {
-                // 選択されている銘柄のトレンドラベルを取得
+                // 1. 選択状態のクラスが付与された要素を基準に探す
                 const selectedTrend = document.querySelector('.cftrndcomp-select + .cftrditmlbl');
-                if (selectedTrend) return selectedTrend.innerText.trim();
+                if (selectedTrend && selectedTrend.innerText.trim()) return selectedTrend.innerText.trim();
                 
-                // フォールバック: 全体から探す（通常は上記で取れるはず）
-                const trends = Array.from(document.querySelectorAll('.cftrditm'));
-                const target = trends.find(el => el.querySelector('.cftrndcomp-select'));
-                if (target) {
-                    const lbl = target.querySelector('.cftrditmlbl');
-                    return lbl ? lbl.innerText.trim() : null;
+                // 2. 選択状態の親要素から探す
+                const selectedBlock = document.querySelector('.cftrndcomp-select')?.closest('.cftrditm');
+                if (selectedBlock) {
+                    const lbl = selectedBlock.querySelector('.cftrditmlbl');
+                    if (lbl && lbl.innerText.trim()) return lbl.innerText.trim();
                 }
+
+                // 3. 全てのトレンドアイテムから、選択状態のもの（cftrndcomp-select を含むもの）を探す
+                const allItems = Array.from(document.querySelectorAll('.cftrditm'));
+                for (const item of allItems) {
+                    if (item.querySelector('.cftrndcomp-select')) {
+                        const lbl = item.querySelector('.cftrditmlbl');
+                        if (lbl && lbl.innerText.trim()) return lbl.innerText.trim();
+                    }
+                }
+
                 return null;
             });
             
             console.log(`[Debug] SBI Trend for ${code}: ${sbiTrend}`);
+            
+            if (!sbiTrend) {
+                console.warn(`      [Warn] SBI trend could not be extracted for ${code}. Taking error screenshot...`);
+                const errPath = `public/screenshots/error_sbi_${code}.png`;
+                await page.screenshot({ path: errPath, fullPage: true });
+                try {
+                    const fileContent = fs.readFileSync(errPath);
+                    await supabase.storage.from('screenshots').upload(`error_sbi_${code}.png`, fileContent, {
+                        contentType: 'image/png',
+                        upsert: true
+                    });
+                } catch (se) {
+                    console.warn(`      [Warn] SBI error screenshot upload failed:`, se.message);
+                }
+            }
         } catch (se) {
             console.warn(`      [Warn] SBI Chartfolio fetch failed for ${code}:`, se.message);
         }
