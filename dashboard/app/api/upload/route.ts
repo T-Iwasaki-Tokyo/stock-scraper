@@ -45,7 +45,7 @@ export async function POST(request: Request) {
                         invest_ratio: parseSafeNumber(row[4]),
                         invest_amount: parseSafeNumber(row[5]),
                         dividend_sum: parseSafeNumber(row[6]),
-                        shares: parseSafeNumber(row[7]),
+                        shares: parseSafeNumber(row[7]) && parseSafeNumber(row[7])! < 1 ? 0 : parseSafeNumber(row[7]),
                         avg_price: parseSafeNumber(row[8])
                     };
                 }
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
                 return {
                     code,
                     name,
-                    shares: parseSafeNumber(row[2]),
+                    shares: parseSafeNumber(row[2]) && parseSafeNumber(row[2])! < 1 ? 0 : parseSafeNumber(row[2]),
                     avg_price: parseSafeNumber(row[3])
                 };
             });
