@@ -435,7 +435,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex-1 flex flex-col overflow-auto bg-slate-50">
-        <main className="p-10 max-w-7xl w-full mx-auto">
+        <main className="p-10 max-w-[2200px] w-full mx-auto">
           {activeTab === 'dashboard' ? (
             <div className="space-y-8">
               <div className="main-panel p-8 rounded-2xl border-none shadow-sm bg-white overflow-hidden relative">
