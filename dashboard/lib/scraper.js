@@ -594,7 +594,7 @@ if (process.argv[1]?.endsWith('scraper.js')) {
             }
             let list = [];
 
-            if (config.mode === 'file') {
+            if (config.mode === 'file' || config.mode === 'gakucho') {
                 console.log('[2/4] モード: ファイル読み込み');
                 const { data: targetStocks, error: targetError } = await supabase
                     .from('target_stocks')
@@ -698,6 +698,17 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                     console.log(`      [Retry R${retryRound}] (${i + 1}/${currentRoundTargets.length}) ${s.name} (${s.code}) を再取得中...`);
                     try {
                         const result = await fetchStockDetail(s.code, s.name);
+                        // ファイルモードの場合は保有数と単価（および学長モードの各項目）を引き継ぐ
+                        if (config.mode === 'file' || config.mode === 'gakucho') {
+                            result.shares = s.shares;
+                            result.avg_price = s.avg_price;
+                            result.file_dividend_yield = s.file_dividend_yield;
+                            result.sector = s.sector;
+                            result.invest_ratio = s.invest_ratio;
+                            result.invest_amount = s.invest_amount;
+                            result.dividend_sum = s.dividend_sum;
+                            await upsertStock(result);
+                        }
                         if (result.price === 'N/A') {
                             retryList.push(s);
                         }
