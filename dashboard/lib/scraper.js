@@ -53,6 +53,8 @@ async function upsertStock(stock) {
     if (stock.yearly_low !== undefined) data.yearly_low = stock.yearly_low !== 'N/A' ? parseFloat(stock.yearly_low) : null;
     if (stock.minkabu_url) data.minkabu_url = stock.minkabu_url;
     if (stock.sbi_trend) data.sbi_trend = stock.sbi_trend;
+    if (stock.shares !== undefined) data.shares = stock.shares;
+    if (stock.avg_price !== undefined) data.avg_price = stock.avg_price;
 
     const { error } = await supabase
         .from('stocks')
@@ -591,7 +593,7 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 console.log('[2/4] モード: ファイル読み込み');
                 const { data: targetStocks, error: targetError } = await supabase
                     .from('target_stocks')
-                    .select('code, name');
+                    .select('code, name, shares, avg_price');
                 
                 if (targetError) {
                     console.error('[Error] 銘柄リストの取得に失敗しました:', targetError.message);
@@ -601,6 +603,8 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 list = (targetStocks || []).map(s => ({
                     code: s.code,
                     name: s.name,
+                    shares: s.shares,
+                    avg_price: s.avg_price,
                     status: 'pending'
                 }));
 
@@ -611,6 +615,8 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                     const initialData = list.map(s => ({
                         code: s.code,
                         name: s.name,
+                        shares: s.shares,
+                        avg_price: s.avg_price,
                         status: 'pending',
                         updated_at: new Date().toISOString()
                     }));
@@ -631,6 +637,12 @@ if (process.argv[1]?.endsWith('scraper.js')) {
                 console.log(`      (${i + 1}/${list.length}) ${s.name} (${s.code}) を詳細取得中...`);
                 try {
                     const result = await fetchStockDetail(s.code, s.name);
+                    // ファイルモードの場合は保有数と単価を引き継ぐ
+                    if (config.mode === 'file') {
+                        result.shares = s.shares;
+                        result.avg_price = s.avg_price;
+                        await upsertStock(result);
+                    }
                     if (result.price === 'N/A') {
                         retryList.push(s);
                     }

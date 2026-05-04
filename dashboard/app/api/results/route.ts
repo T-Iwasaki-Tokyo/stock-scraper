@@ -38,6 +38,8 @@ export async function GET() {
             chartUrl: s.chart_url,
             minkabuUrl: s.minkabu_url,
             sbiTrend: s.sbi_trend,
+            shares: s.shares,
+            avgPrice: s.avg_price,
             timestamp: s.updated_at ? new Date(s.updated_at).toLocaleString('ja-JP') : null
         }));
 

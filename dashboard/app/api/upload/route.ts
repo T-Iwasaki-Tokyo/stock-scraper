@@ -20,11 +20,14 @@ export async function POST(request: Request) {
         // header: 1 は 配列の配列形式で取得
         const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
         
-        const rawStocks = data
+        // 1行目はヘッダとしてスキップ、2行目以降を取得
+        const rawStocks = data.slice(1)
             .filter(row => row[0]) // コードがある行のみ
             .map(row => ({
                 code: row[0].toString().trim(),
-                name: row[1]?.toString().trim() || '名称未設定'
+                name: row[1]?.toString().trim() || '名称未設定',
+                shares: row[2] ? Number(row[2]) : null,
+                avg_price: row[3] ? Number(row[3]) : null
             }));
 
         if (rawStocks.length === 0) {

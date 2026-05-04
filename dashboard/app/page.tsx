@@ -94,7 +94,7 @@ export default function DashboardPage() {
       let valB = b[sortKey];
 
       // 数値変換（利回りや金額用）
-      if (['price', 'totalYield', 'dividendYield', 'yutaiYield', 'pbr', 'ma5Diff', 'ma25Diff'].includes(sortKey)) {
+      if (['price', 'totalYield', 'dividendYield', 'yutaiYield', 'pbr', 'ma5Diff', 'ma25Diff', 'shares', 'avgPrice'].includes(sortKey)) {
         valA = parseFloat(valA) || 0;
         valB = parseFloat(valB) || 0;
       }
@@ -232,8 +232,14 @@ export default function DashboardPage() {
     const current = config.current || config;
     if (current.mode === mode) return;
 
-    // 設定を保存してモードを切り替え
-    const res = await fetch('/api/config', {
+    // 楽観的更新: 先に表示を切り替える
+    setConfig({
+      ...config,
+      current: { ...current, mode }
+    });
+
+    try {
+      const res = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -243,8 +249,15 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
+        // 必要に応じてサーバーからの最新状態で更新
         setConfig(data.config);
       }
+    } catch (e) {
+      console.error('Failed to update mode:', e);
+      // 失敗した場合は元に戻す
+      setConfig({ ...config, current });
+      alert('モードの切り替えに失敗しました');
+    }
   };
 
   const loadHistoryConfig = (hist: any) => {
@@ -296,13 +309,17 @@ export default function DashboardPage() {
 
   const downloadCSV = () => {
     if (results.length === 0) return;
-    const headers = ['コード', '銘柄名', '現在値', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', 'チャート形状', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
-    const rows = results.map(s => [
-      s.code, s.name, s.price, s.totalYield, s.dividendYield, s.dividendPerShare || '-', s.yutaiYield, s.pbr, s.sbiTrend || '-',
-      s.yearlyHigh || '-', s.yearlyLow || '-',
-      s.ma5_val || '-', s.ma5Diff || '-', s.ma25_val || '-', s.ma25Diff || '-',
-      s.timestamp || '-', s.yahooUrl
-    ]);
+    const headers = ['コード', '銘柄名', '現在値', '保有数', '平均単価', '評価損益', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', 'チャート形状', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
+    const rows = results.map(s => {
+      const profit = (s.shares && s.avgPrice && s.price) ? (Number(s.price) - Number(s.avgPrice)) * Number(s.shares) : null;
+      return [
+        s.code, s.name, s.price, s.shares || '-', s.avgPrice || '-', profit || '-',
+        s.totalYield, s.dividendYield, s.dividendPerShare || '-', s.yutaiYield, s.pbr, s.sbiTrend || '-',
+        s.yearlyHigh || '-', s.yearlyLow || '-',
+        s.ma5_val || '-', s.ma5Diff || '-', s.ma25_val || '-', s.ma25Diff || '-',
+        s.timestamp || '-', s.yahooUrl
+      ];
+    });
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); 
     const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -531,6 +548,23 @@ export default function DashboardPage() {
                           {sortKey === 'price' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
+                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('shares')}>
+                        <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
+                          保有数
+                          {sortKey === 'shares' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('avgPrice')}>
+                        <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
+                          平均単価
+                          {sortKey === 'avgPrice' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
+                        </div>
+                      </th>
+                      <th className="w-32 text-right">
+                        <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
+                          評価損益
+                        </div>
+                      </th>
                       <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('totalYield')}>
                         <div className="flex items-center justify-end gap-1">
                           総合利回り
@@ -625,6 +659,24 @@ export default function DashboardPage() {
                               <div className="flex flex-col items-end">
                                 <span>{Number(stock.price).toLocaleString()}円</span>
                               </div>
+                            ) : '-'}
+                          </td>
+                          <td className="text-right font-bold text-slate-500 text-xs">
+                            {stock.shares ? `${Number(stock.shares).toLocaleString()}` : '-'}
+                          </td>
+                          <td className="text-right font-bold text-slate-500 text-xs">
+                            {stock.avgPrice ? `${Number(stock.avgPrice).toLocaleString()}円` : '-'}
+                          </td>
+                          <td className="text-right font-black text-sm">
+                            {stock.price && stock.avgPrice && stock.shares ? (
+                              (() => {
+                                const profit = (Number(stock.price) - Number(stock.avgPrice)) * Number(stock.shares);
+                                return (
+                                  <span className={profit >= 0 ? 'text-rose-500' : 'text-emerald-500'}>
+                                    {profit >= 0 ? '+' : ''}{profit.toLocaleString()}円
+                                  </span>
+                                );
+                              })()
                             ) : '-'}
                           </td>
                           <td className="text-right font-black text-indigo-600">
