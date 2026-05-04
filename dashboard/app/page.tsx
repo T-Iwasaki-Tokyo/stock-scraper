@@ -41,11 +41,21 @@ export default function DashboardPage() {
   const status = useMemo(() => {
     if (results.length === 0) return { phase: 'idle', message: '待機中', current: 0, total: 0 };
     const total = results.length;
-    const current = results.filter(r => r.status === 'complete').length;
-    if (total > 0 && current < total) {
-      return { phase: 'fetching', message: `詳細情報をクラウドで取得中です... (${current}/${total})`, current, total };
+    const completed = results.filter(r => r.status === 'complete').length;
+    const stopped = results.filter(r => r.status === 'stopped').length;
+    
+    // 取得中かどうかは、待機状態の銘柄があるかどうかで判断
+    const isFetching = results.some(r => ['pending', 'waiting', 'fetching'].includes(r.status));
+
+    if (isFetching) {
+      return { phase: 'fetching', message: `詳細情報をクラウドで取得中です... (${completed}/${total})`, current: completed, total };
     }
-    return { phase: 'completed', message: '最新情報の取得が完了しています', current, total };
+    
+    if (stopped > 0) {
+      return { phase: 'completed', message: `検索を中断しました (${completed}件完了 / ${stopped}件停止)`, current: total, total };
+    }
+
+    return { phase: 'completed', message: '最新情報の取得が完了しています', current: total, total };
   }, [results]);
 
   const isRunning = status.phase === 'fetching';
@@ -580,12 +590,27 @@ export default function DashboardPage() {
                   <tbody>
                     {sortedResults.map((stock) => {
                       const isComplete = stock.status === 'complete';
+                      const isStopped = stock.status === 'stopped';
+                      const isFetching = !isComplete && !isStopped;
+
                       return (
                         <tr key={stock.code} className="hover:bg-slate-50/50 transition-colors">
                           <td className="pl-6">
-                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded inline-flex items-center gap-1.5 ${isComplete ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100 animate-pulse'}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${isComplete ? 'bg-emerald-500' : 'bg-indigo-600'}`}></span>
-                              {isComplete ? '完了' : '取得中'}
+                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded inline-flex items-center gap-1.5 ${
+                              isComplete 
+                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                                : isStopped 
+                                  ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                                  : 'bg-indigo-50 text-indigo-600 border border-indigo-100 animate-pulse'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                isComplete 
+                                  ? 'bg-emerald-500' 
+                                  : isStopped 
+                                    ? 'bg-slate-400' 
+                                    : 'bg-indigo-600'
+                              }`}></span>
+                              {isComplete ? '完了' : isStopped ? '停止' : '取得中'}
                             </span>
                           </td>
                           <td className="font-bold text-slate-400 font-mono tracking-tighter">{stock.code}</td>

@@ -1,4 +1,10 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST() {
     const GITHUB_TOKEN = process.env.GITHUB_ACCESS_TOKEN;
@@ -73,8 +79,21 @@ export async function POST() {
             }
         }
 
+        // 3. データベース上のステータスを「停止」に更新
+        console.log('[Stop] Updating database statuses to "stopped"...');
+        const { error: updateError } = await supabase
+            .from('stocks')
+            .update({ status: 'stopped', updated_at: new Date().toISOString() })
+            .not('status', 'eq', 'complete');
+
+        if (updateError) {
+            console.error('[Error] Failed to update statuses in DB:', updateError.message);
+        }
+
         return NextResponse.json({ 
-            message: `${cancelledCount} 件のプロセスを停止しました。`,
+            message: cancelledCount > 0 
+                ? `${cancelledCount} 件のプロセスを停止し、残りの銘柄を中断状態にしました。`
+                : '実行中のプロセスを停止し、残りの銘柄を中断状態にしました。',
             count: cancelledCount 
         });
 
