@@ -309,11 +309,19 @@ export default function DashboardPage() {
 
   const downloadCSV = () => {
     if (results.length === 0) return;
-    const headers = ['コード', '銘柄名', '現在値', '保有数', '平均単価', '評価損益', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', 'チャート形状', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
+    const headers = ['コード', '銘柄名', '判定', '現在値', '保有数', '平均単価', '評価損益', '総合利回り', '配当利回り', '1株配当', '優待利回り', 'PBR', 'チャート形状', '年初高値', '年初安値', '5日線', '5日乖離率', '25日線', '25日乖離率', '更新日時', 'Yahoo引用元'];
     const rows = results.map(s => {
       const profit = (s.shares && s.avgPrice && s.price) ? (Number(s.price) - Number(s.avgPrice)) * Number(s.shares) : null;
+      
+      const p = Number(s.price);
+      const l = Number(s.yearlyLow);
+      const h = Number(s.yearlyHigh);
+      let judgmentText = '-';
+      if (p && l && p <= l * 1.05 && p >= l * 0.95) judgmentText = '買い時';
+      else if (p && h && p >= h * 0.95 && p <= h * 1.05) judgmentText = '売り時';
+
       return [
-        s.code, s.name, s.price, s.shares || '-', s.avgPrice || '-', profit || '-',
+        s.code, s.name, judgmentText, s.price, s.shares || '-', s.avgPrice || '-', profit || '-',
         s.totalYield, s.dividendYield, s.dividendPerShare || '-', s.yutaiYield, s.pbr, s.sbiTrend || '-',
         s.yearlyHigh || '-', s.yearlyLow || '-',
         s.ma5_val || '-', s.ma5Diff || '-', s.ma25_val || '-', s.ma25Diff || '-',
@@ -525,8 +533,8 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="main-panel rounded-xl shadow-sm overflow-hidden bg-white border border-slate-100">
-                <table className="data-table">
+              <div className="main-panel rounded-xl shadow-sm overflow-x-auto bg-white border border-slate-100 custom-scrollbar">
+                <table className="data-table min-w-[1600px]">
                   <thead>
                     <tr>
                       <th className="w-32">状態</th>
@@ -542,6 +550,7 @@ export default function DashboardPage() {
                           {sortKey === 'name' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
+                      <th className="w-24 text-center">判定</th>
                       <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('price')}>
                         <div className="flex items-center justify-end gap-1">
                           現在値
@@ -654,6 +663,20 @@ export default function DashboardPage() {
                               <span className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title={stock.yutai_desc}>{stock.yutai_desc || '-'}</span>
                             </div>
                           </td>
+                          <td className="text-center">
+                            {(() => {
+                              const p = Number(stock.price);
+                              const l = Number(stock.yearlyLow);
+                              const h = Number(stock.yearlyHigh);
+                              if (p && l && p <= l * 1.05 && p >= l * 0.95) {
+                                return <span className="bg-blue-500 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-sm">買い時</span>;
+                              }
+                              if (p && h && p >= h * 0.95 && p <= h * 1.05) {
+                                return <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-sm">売り時</span>;
+                              }
+                              return <span className="text-slate-300 text-[10px]">—</span>;
+                            })()}
+                          </td>
                           <td className="text-right font-black text-slate-700">
                             {stock.price ? (
                               <div className="flex flex-col items-end">
@@ -746,7 +769,7 @@ export default function DashboardPage() {
                     })}
                     {results.length === 0 && (
                       <tr>
-                        <td colSpan={11} className="py-32 text-center text-slate-400 bg-slate-50/20">
+                        <td colSpan={20} className="py-32 text-center text-slate-400 bg-slate-50/20">
                           <p className="font-bold">データがありません</p>
                           <p className="text-xs mt-1">「検索を開始」ボタンを押して調査を開始してください。</p>
                         </td>
