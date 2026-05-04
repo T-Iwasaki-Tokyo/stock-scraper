@@ -537,14 +537,14 @@ export default function DashboardPage() {
                 <table className="data-table min-w-[2200px]">
                   <thead>
                     <tr>
-                      <th className="w-32">状態</th>
-                      <th className="w-24 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('code')}>
+                      <th className="w-32 sticky left-0 z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] pl-6">状態</th>
+                      <th className="w-24 sticky left-[128px] z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('code')}>
                         <div className="flex items-center gap-1">
                           コード
                           {sortKey === 'code' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-48 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('name')}>
+                      <th className="w-48 sticky left-[224px] z-30 bg-white shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('name')}>
                         <div className="flex items-center gap-1">
                           銘柄名
                           {sortKey === 'name' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
@@ -638,7 +638,7 @@ export default function DashboardPage() {
 
                       return (
                         <tr key={stock.code} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="pl-6">
+                          <td className="pl-6 sticky left-0 z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[inset_-1px_0_0_#f1f5f9]">
                             <span className={`text-[10px] font-black uppercase px-2 py-1 rounded inline-flex items-center gap-1.5 ${
                               isComplete 
                                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
@@ -656,8 +656,8 @@ export default function DashboardPage() {
                               {isComplete ? '完了' : isStopped ? '停止' : '取得中'}
                             </span>
                           </td>
-                          <td className="font-bold text-slate-400 font-mono tracking-tighter">{stock.code}</td>
-                          <td>
+                          <td className="font-bold text-slate-400 font-mono tracking-tighter sticky left-[128px] z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[inset_-1px_0_0_#f1f5f9]">{stock.code}</td>
+                          <td className="sticky left-[224px] z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)]">
                             <div className="flex flex-col">
                               <span className="font-bold text-slate-900 leading-tight">{stock.name}</span>
                               <span className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title={stock.yutai_desc}>{stock.yutai_desc || '-'}</span>
