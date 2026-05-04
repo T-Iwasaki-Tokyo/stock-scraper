@@ -559,17 +559,17 @@ export default function DashboardPage() {
               </div>
 
               <div className="main-panel rounded-xl shadow-sm overflow-x-auto bg-white border border-slate-100 custom-scrollbar">
-                <table className="data-table min-w-[2900px]">
+                <table className="data-table table-auto w-full">
                   <thead>
                     <tr>
-                      <th className="w-32 sticky left-0 z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] pl-6">状態</th>
-                      <th className="w-24 sticky left-[128px] z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('code')}>
+                      <th className="w-24 sticky left-0 z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] pl-6 whitespace-nowrap">状態</th>
+                      <th className="w-20 sticky left-[96px] z-30 bg-white shadow-[inset_-1px_0_0_#e2e8f0] cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('code')}>
                         <div className="flex items-center gap-1">
                           コード
                           {sortKey === 'code' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-48 sticky left-[224px] z-30 bg-white shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('name')}>
+                      <th className="w-48 sticky left-[176px] z-30 bg-white shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('name')}>
                         <div className="flex items-center gap-1">
                           銘柄名
                           {sortKey === 'name' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
@@ -577,98 +577,98 @@ export default function DashboardPage() {
                       </th>
                       {config.current?.mode === 'gakucho' && (
                         <>
-                          <th className="w-24 text-left cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('sector')}>セクター</th>
-                          <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('investRatio')}>投資割合</th>
-                          <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('investAmount')}>投資額</th>
-                          <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('dividendSum')}>配当金</th>
-                          <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => toggleSort('fileDividendYield')}>利回り(F)</th>
+                          <th className="px-4 text-left cursor-pointer hover:bg-slate-50 transition-colors whitespace-nowrap" onClick={() => toggleSort('sector')}>セクター</th>
+                          <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors whitespace-nowrap" onClick={() => toggleSort('investRatio')}>投資割合</th>
+                          <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors whitespace-nowrap" onClick={() => toggleSort('investAmount')}>投資額</th>
+                          <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors whitespace-nowrap" onClick={() => toggleSort('dividendSum')}>配当金</th>
+                          <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors whitespace-nowrap" onClick={() => toggleSort('fileDividendYield')}>利回り(F)</th>
                         </>
                       )}
-                      <th className="w-24 text-center">判定</th>
-                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('price')}>
+                      <th className="px-4 text-center whitespace-nowrap">判定</th>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('price')}>
                         <div className="flex items-center justify-end gap-1">
                           現在値
                           {sortKey === 'price' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('shares')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('shares')}>
                         <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
                           保有数
                           {sortKey === 'shares' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('avgPrice')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('avgPrice')}>
                         <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
                           平均単価
                           {sortKey === 'avgPrice' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-32 text-right">
+                      <th className="px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
                           評価損益
                         </div>
                       </th>
-                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('totalYield')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('totalYield')}>
                         <div className="flex items-center justify-end gap-1">
                           総合利回り
                           {sortKey === 'totalYield' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('dividendYield')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('dividendYield')}>
                         <div className="flex items-center justify-end gap-1">
                           配当利回り
                           {sortKey === 'dividendYield' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('dividendPerShare')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('dividendPerShare')}>
                         <div className="flex items-center justify-end gap-1">
                           1株配当
                           {sortKey === 'dividendPerShare' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-32 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('yutaiYield')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('yutaiYield')}>
                         <div className="flex items-center justify-end gap-1">
                           優待利回り
                           {sortKey === 'yutaiYield' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('pbr')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('pbr')}>
                         <div className="flex items-center justify-end gap-1">
                           PBR
                           {sortKey === 'pbr' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-32 text-center cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('sbiTrend')}>
+                      <th className="px-4 text-center cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('sbiTrend')}>
                         <div className="flex items-center justify-center gap-1">
                           チャート形状
                           {sortKey === 'sbiTrend' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-24 text-right cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('yearlyHigh')}>
+                      <th className="px-4 text-right cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('yearlyHigh')}>
                         <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
                           年初来高値
                           {sortKey === 'yearlyHigh' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-24 text-right pr-2 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('yearlyLow')}>
+                      <th className="px-4 text-right pr-2 cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('yearlyLow')}>
                         <div className="flex items-center justify-end gap-1 text-[11px] leading-none uppercase text-slate-400 font-black">
                           年初来安値
                           {sortKey === 'yearlyLow' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-28 text-right underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('ma5Diff')}>
+                      <th className="px-4 text-right underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('ma5Diff')}>
                         <div className="flex items-center justify-end gap-1">
                           5日線
                           {sortKey === 'ma5Diff' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-28 text-right pr-6 underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group" onClick={() => toggleSort('ma25Diff')}>
+                      <th className="px-4 text-right pr-6 underline decoration-indigo-200 cursor-pointer hover:bg-slate-50 transition-colors group whitespace-nowrap" onClick={() => toggleSort('ma25Diff')}>
                         <div className="flex items-center justify-end gap-1">
                           25日線
                           {sortKey === 'ma25Diff' ? (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />) : <div className="w-3.5" />}
                         </div>
                       </th>
-                      <th className="w-24 text-right pr-6 whitespace-nowrap">リンク</th>
+                      <th className="px-4 text-right pr-6 whitespace-nowrap">リンク</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -679,7 +679,7 @@ export default function DashboardPage() {
 
                       return (
                         <tr key={stock.code} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="pl-6 sticky left-0 z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[inset_-1px_0_0_#f1f5f9]">
+                          <td className="pl-6 sticky left-0 z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[inset_-1px_0_0_#f1f5f9] whitespace-nowrap">
                             <span className={`text-[10px] font-black uppercase px-2 py-1 rounded inline-flex items-center gap-1.5 ${
                               isComplete 
                                 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
@@ -697,8 +697,8 @@ export default function DashboardPage() {
                               {isComplete ? '完了' : isStopped ? '停止' : '取得中'}
                             </span>
                           </td>
-                          <td className="font-bold text-slate-400 font-mono tracking-tighter sticky left-[128px] z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[inset_-1px_0_0_#f1f5f9]">{stock.code}</td>
-                          <td className="sticky left-[224px] z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)]">
+                          <td className="font-bold text-slate-400 font-mono tracking-tighter sticky left-[96px] z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[inset_-1px_0_0_#f1f5f9] whitespace-nowrap">{stock.code}</td>
+                          <td className="sticky left-[176px] z-20 bg-white group-hover:bg-slate-50/80 transition-colors shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] whitespace-nowrap">
                             <div className="flex flex-col">
                               <span className="font-bold text-slate-900 leading-tight">{stock.name}</span>
                               <span className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title={stock.yutai_desc}>{stock.yutai_desc || '-'}</span>
@@ -706,14 +706,14 @@ export default function DashboardPage() {
                           </td>
                           {config.current?.mode === 'gakucho' && (
                             <>
-                              <td className="text-left text-xs font-bold text-slate-500">{stock.sector || '-'}</td>
-                              <td className="text-right text-xs font-bold text-slate-500">{stock.investRatio ? `${stock.investRatio}%` : '-'}</td>
-                              <td className="text-right text-xs font-bold text-slate-500">{stock.investAmount ? `${Number(stock.investAmount).toLocaleString()}円` : '-'}</td>
-                              <td className="text-right text-xs font-bold text-slate-500">{stock.dividendSum ? `${Number(stock.dividendSum).toLocaleString()}円` : '-'}</td>
-                              <td className="text-right text-xs font-bold text-indigo-400">{stock.fileDividendYield ? `${stock.fileDividendYield}%` : '-'}</td>
+                              <td className="text-left text-xs font-bold text-slate-500 whitespace-nowrap px-4">{stock.sector || '-'}</td>
+                              <td className="text-right text-xs font-bold text-slate-500 whitespace-nowrap px-4">{stock.investRatio ? `${stock.investRatio}%` : '-'}</td>
+                              <td className="text-right text-xs font-bold text-slate-500 whitespace-nowrap px-4">{stock.investAmount ? `${Number(stock.investAmount).toLocaleString()}円` : '-'}</td>
+                              <td className="text-right text-xs font-bold text-slate-500 whitespace-nowrap px-4">{stock.dividendSum ? `${Number(stock.dividendSum).toLocaleString()}円` : '-'}</td>
+                              <td className="text-right text-xs font-bold text-indigo-400 whitespace-nowrap px-4">{stock.fileDividendYield ? `${stock.fileDividendYield}%` : '-'}</td>
                             </>
                           )}
-                          <td className="text-center">
+                          <td className="text-center whitespace-nowrap px-4">
                             {(() => {
                               const p = Number(stock.price);
                               const l = Number(stock.yearlyLow);
@@ -727,7 +727,7 @@ export default function DashboardPage() {
                               return <span className="text-slate-300 text-[10px]">—</span>;
                             })()}
                           </td>
-                          <td className="text-right font-black text-slate-700">
+                          <td className="text-right font-black text-slate-700 whitespace-nowrap px-4">
                             {stock.price && stock.price !== '取得中...' ? (
                               <div className="flex flex-col items-end">
                                 <span>{Number(stock.price).toLocaleString()}円</span>
@@ -736,13 +736,13 @@ export default function DashboardPage() {
                               <span className="text-slate-400 text-xs">{stock.price || '-'}</span>
                             )}
                           </td>
-                          <td className="text-right font-bold text-slate-500 text-xs">
+                          <td className="text-right font-bold text-slate-500 text-xs whitespace-nowrap px-4">
                             {stock.shares ? `${Number(stock.shares).toLocaleString()}` : '-'}
                           </td>
-                          <td className="text-right font-bold text-slate-500 text-xs">
+                          <td className="text-right font-bold text-slate-500 text-xs whitespace-nowrap px-4">
                             {stock.avgPrice ? `${Number(stock.avgPrice).toLocaleString()}円` : '-'}
                           </td>
-                          <td className="text-right font-black text-sm">
+                          <td className="text-right font-black text-sm whitespace-nowrap px-4">
                             {stock.price && stock.avgPrice && stock.shares ? (
                               (() => {
                                 const profit = (Number(stock.price) - Number(stock.avgPrice)) * Number(stock.shares);
@@ -754,33 +754,33 @@ export default function DashboardPage() {
                               })()
                             ) : '-'}
                           </td>
-                          <td className="text-right font-black text-indigo-600">
+                          <td className="text-right font-black text-indigo-600 whitespace-nowrap px-4">
                             {stock.totalYield && stock.totalYield !== 'N/A' ? `${stock.totalYield}%` : '-'}
                           </td>
-                          <td className="text-right font-bold text-slate-500">
+                          <td className="text-right font-bold text-slate-500 whitespace-nowrap px-4">
                             {stock.dividendYield && stock.dividendYield !== 'N/A' ? `${stock.dividendYield}%` : '-'}
                           </td>
-                          <td className="text-right font-bold text-slate-400 text-xs">
+                          <td className="text-right font-bold text-slate-400 text-xs whitespace-nowrap px-4">
                             {stock.dividendPerShare ? `${stock.dividendPerShare}円` : '-'}
                           </td>
-                          <td className="text-right font-bold text-slate-500">
+                          <td className="text-right font-bold text-slate-500 whitespace-nowrap px-4">
                             {stock.yutaiYield && stock.yutaiYield !== 'N/A' ? `${stock.yutaiYield}%` : '-'}
                           </td>
-                          <td className="text-right font-bold text-slate-500">{stock.pbr || '-'}</td>
-                          <td className="text-center">
+                          <td className="text-right font-bold text-slate-500 whitespace-nowrap px-4">{stock.pbr || '-'}</td>
+                          <td className="text-center whitespace-nowrap px-4">
                             {stock.sbiTrend ? (
                               <span className="text-[11px] font-black px-2 py-1 bg-slate-100 rounded-md text-slate-700 whitespace-nowrap">
                                 {stock.sbiTrend}
                               </span>
                             ) : '-'}
                           </td>
-                          <td className="text-right font-mono text-[10px] text-rose-400">
+                          <td className="text-right font-mono text-[10px] text-rose-400 whitespace-nowrap px-4">
                             {stock.yearlyHigh ? `${Number(stock.yearlyHigh).toLocaleString()}円` : '-'}
                           </td>
-                          <td className="text-right pr-2 font-mono text-[10px] text-emerald-500">
+                          <td className="text-right pr-2 font-mono text-[10px] text-emerald-500 whitespace-nowrap px-4">
                             {stock.yearlyLow ? `${Number(stock.yearlyLow).toLocaleString()}円` : '-'}
                           </td>
-                          <td className="text-right font-bold">
+                          <td className="text-right font-bold whitespace-nowrap px-4">
                             <div className="flex flex-col items-end">
                               <span className={parseFloat(stock.ma5Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}>
                                 {stock.ma5Diff ? `${stock.ma5Diff}%` : '-'}
@@ -788,7 +788,7 @@ export default function DashboardPage() {
                               {stock.ma5Trend && <span className="text-[10px] text-slate-400 font-normal tracking-tighter">{stock.ma5Trend}</span>}
                             </div>
                           </td>
-                          <td className="text-right pr-6 font-bold">
+                          <td className="text-right pr-6 font-bold whitespace-nowrap px-4">
                             <div className="flex flex-col items-end">
                               <span className={parseFloat(stock.ma25Diff) < 0 ? 'text-emerald-500' : 'text-rose-400'}>
                                 {stock.ma25Diff ? `${stock.ma25Diff}%` : '-'}
@@ -796,7 +796,7 @@ export default function DashboardPage() {
                               {stock.ma25Trend && <span className="text-[10px] text-slate-400 font-normal tracking-tighter">{stock.ma25Trend}</span>}
                             </div>
                           </td>
-                          <td className="text-right pr-6">
+                          <td className="text-right pr-6 whitespace-nowrap px-4">
                             <div className="flex justify-end gap-1">
                               {/* Yahoo! ファイナンス */}
                               {stock.yahooUrl && (
