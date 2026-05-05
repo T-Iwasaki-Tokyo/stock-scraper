@@ -362,7 +362,6 @@ export default function DashboardPage() {
 
 
   return (
-  return (
     <div className="min-h-screen flex flex-col md:flex-row text-slate-800 bg-slate-50">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 text-white sticky top-0 z-50 shadow-md">
