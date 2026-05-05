@@ -24,6 +24,7 @@ export default function DashboardPage() {
 
   const [lastScreenshotUrl, setLastScreenshotUrl] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const fetchResults = useCallback(async () => {
     const res = await fetch('/api/results', { cache: 'no-store' });
@@ -361,81 +362,119 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="min-h-screen flex text-slate-800">
-      <div className="w-64 bg-slate-900 text-white flex flex-col shrink-0 min-h-screen">
-        <div className="p-8">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center">
-              <BarChart3 size={18} />
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row text-slate-800 bg-slate-50">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 text-white sticky top-0 z-50 shadow-md">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="text-indigo-400" size={20} />
+          <span className="font-bold tracking-tight">株主優待検索</span>
+        </div>
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400 hover:text-white transition-colors">
+          <Activity size={24} />
+        </button>
+      </div>
+
+      {/* Overlay for mobile sidebar */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-white flex flex-col shrink-0 min-h-screen transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0
+      `}>
+        <div className="p-8 border-b border-slate-800/50">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <BarChart3 size={22} />
             </div>
-            <span className="font-bold tracking-tight text-lg">株主優待検索</span>
+            <div>
+              <h1 className="text-lg font-black tracking-tight leading-none">株主優待検索</h1>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Automatic Scraper</p>
+            </div>
           </div>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Automatic Scraper</p>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1">
+        {/* Action Area (Repositioned) */}
+        <div className="p-6 bg-slate-800/20 border-b border-slate-800/50 space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></div>
+              <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider">{isRunning ? '稼働中' : '待機中'}</span>
+            </div>
+            {lastUpdated && (
+              <span className="text-[9px] text-slate-500 font-bold tabular-nums">
+                {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            {isRunning ? (
+              <button 
+                onClick={handleStopScraper}
+                disabled={isTriggering}
+                className="w-full bg-rose-500/10 border border-rose-500/30 text-rose-400 py-3 rounded-lg font-black text-[11px] uppercase tracking-widest hover:bg-rose-500 hover:text-white active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                {isTriggering ? <RefreshCw size={14} className="animate-spin" /> : <Activity size={14} />} 
+                停止する
+              </button>
+            ) : (
+              <button 
+                onClick={handleRunScraper}
+                disabled={isTriggering}
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-900/20 hover:bg-indigo-500 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                {isTriggering ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />} 
+                検索を開始
+              </button>
+            )}
+            
+            <button 
+              onClick={handleClearData}
+              className="w-full py-2.5 px-3 rounded-lg border border-slate-700/50 text-[10px] font-black text-slate-500 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all flex items-center justify-center gap-2"
+            >
+              <Trash2 size={12} /> データをクリア
+            </button>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+          <div className="px-3 mb-2 text-[10px] font-black text-slate-600 uppercase tracking-widest">Navigation</div>
           <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+            onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
           >
             <LayoutDashboard size={18} /> ダッシュボード
           </button>
           <button 
-            onClick={() => setActiveTab('settings')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-md text-sm font-bold transition-colors ${activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+            onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
           >
             <Settings size={18} /> 検索条件の設定
           </button>
         </nav>
 
-        <div className="p-6 mt-auto border-t border-slate-800/50">
-          <div className="flex items-center gap-2 mb-4 px-2">
-            <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></div>
-            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">{isRunning ? 'システム稼働中' : 'アイドル状態'}</span>
-          </div>
-          {isRunning ? (
-            <button 
-              onClick={handleStopScraper}
-              disabled={isTriggering}
-              className="w-full bg-rose-500 text-white py-3 rounded font-bold text-sm shadow-xl hover:bg-rose-600 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              {isTriggering ? <RefreshCw size={16} className="animate-spin" /> : <Activity size={16} />} 
-              停止する
-            </button>
-          ) : (
-            <button 
-              onClick={handleRunScraper}
-              disabled={isTriggering}
-              className="w-full bg-white text-slate-900 py-3 rounded font-bold text-sm shadow-xl hover:bg-slate-50 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              {isTriggering ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />} 
-              検索を開始
-            </button>
-          )}
-        </div>
-
-        <div className="px-8 py-5 bg-slate-950/40 border-t border-slate-800/50">
-          <p className="text-[10px] text-slate-500 font-bold mb-1">株主優待自動検索システム</p>
-          <p className="text-[9px] text-slate-600">バージョン 8.1 | クラウド対応版</p>
-          {lastUpdated && (
-            <div className="mt-4 pt-4 border-t border-slate-800/30">
-              <p className="text-[9px] text-slate-500 font-bold flex items-center gap-2">
-                <RefreshCw size={10} className={isRunning ? 'animate-spin text-indigo-400' : 'text-slate-600'} />
-                同期時刻: {lastUpdated.toLocaleTimeString()}
-              </p>
+        <div className="p-6 bg-slate-950/20 border-t border-slate-800/50">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">V8</div>
+            <div className="flex-1">
+              <p className="text-[10px] text-slate-200 font-bold">Automation System</p>
+              <p className="text-[9px] text-slate-600 font-medium">Cloud Edition | v8.1</p>
             </div>
-          )}
-          <button 
-            onClick={handleClearData}
-            className="mt-6 w-full py-2 px-3 rounded-lg border border-red-900/30 text-[10px] font-black text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-all flex items-center justify-center gap-2"
-          >
-            <Trash2 size={12} /> 全データをクリア
-          </button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-auto bg-slate-50">
-        <main className="p-10 max-w-[2200px] w-full mx-auto">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <div className="flex-1 overflow-auto custom-scrollbar p-4 md:p-10">
+          <div className="max-w-[2200px] w-full mx-auto">
           {activeTab === 'dashboard' ? (
             <div className="space-y-8">
               <div className="main-panel p-8 rounded-2xl border-none shadow-sm bg-white overflow-hidden relative">
